@@ -1,14 +1,14 @@
 % odefun=@(t,x) mysf(t,x,l1,l2,m1,m2,K,B)
 % [t,y] = ode45(odefun,[0 20], [0;0;0;0])
-%
+
 % use interp1 to get equal spaced times
 
 function dx = mysf(t,x,l1,l2,m1,m2,K,B)
 %MYSF Summary of this function goes here
 %   Detailed explanation goes here
 
-qAct=x(1:2);
-qdAct=x(3:4);
+    qAct=x(1:2);
+    qdAct=x(3:4);
 
     % Compute dynamics
     M = mass_matrix(qAct(1), qAct(2), l1, l2, m1, m2);
