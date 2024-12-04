@@ -6,7 +6,7 @@ l1 = 1; l2 = 1; % Link lengths
 m1 = 1; m2 = 1; % Masses
 g = 0;
 
-qDes = [pi/2; 0];
+qDes = [pi/8; 0];
 qdDes = [0; 0];
 
 % Linearized dynamics (A and B matrices)
@@ -22,7 +22,7 @@ K = place(A, B, desired_poles);
 
 % Solve system dynamics
 odefun = @(t,x) mysf_with_pole_placement(t, x, l1, l2, m1, m2, qDes, qdDes, K);
-[t, y] = ode45(odefun, [0 20], [pi/6; pi/8; 0; 0]);
+[t, y] = ode45(odefun, [0 20], [0; 0; 0; 0]);
 
 % Create a linearly spaced time vector
 t_uniform = linspace(0, 20, 20000); % Adjust resolution as needed
@@ -66,7 +66,7 @@ function dx = mysf_with_pole_placement(t, x, l1, l2, m1, m2, qDes, qdDes, K)
     C = coriolis_matrix(qAct(1), qAct(2), qdAct(1), qdAct(2), l1, l2, m1, m2);
 
     % State error
-    e = [qAct - qDes; qdAct - qdDes];
+    e = [qAct - pi/6; qdAct - qdDes];
     
     % Control input using pole placement
     Torque = -K * e;
