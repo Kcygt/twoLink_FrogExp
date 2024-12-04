@@ -7,22 +7,21 @@ m1 = 1; m2 = 1; % Masses
 g = 0;
 
 qDes = [pi/8; 0];
-qdDes = [0;0];
-
-% Define LQR parameters
-Q = diag([20, 20, 20, 20]); % State cost matrix (adjust to tune)
-R = diag([.01, .01]);         % Control input cost matrix (adjust to tune)
+qdDes = [0; 0];
 
 % Linearized dynamics (A and B matrices)
 A = [zeros(2), eye(2);
      zeros(2), zeros(2)];
 B = [zeros(2); eye(2)];
 
-% LQR gain matrix
-[K,S,P] = lqr(A, B, Q, R);
+% Define desired poles for pole placement
+desired_poles = [-1 -2 -3 -4]; % Adjust to tune controller behavior
+
+% Compute the state feedback gain matrix using pole placement
+K = place(A, B, desired_poles);
 
 % Solve system dynamics
-odefun = @(t,x) mysf_with_lqr(t,x,l1,l2,m1,m2,qDes,qdDes,K);
+odefun = @(t,x) mysf_with_pole_placement(t, x, l1, l2, m1, m2, qDes, qdDes, K);
 [t, y] = ode45(odefun, [0 20], [0; 0; 0; 0]);
 
 % Create a linearly spaced time vector
@@ -56,7 +55,7 @@ plot(t_uniform, y_interp(:,2)); title('Joint 2 Position');
 xlabel('Time (s)'); ylabel('Position (rad)');
 
 % --- Function Definitions ---
-function dx = mysf_with_lqr(t, x, l1, l2, m1, m2, qDes, qdDes, K)
+function dx = mysf_with_pole_placement(t, x, l1, l2, m1, m2, qDes, qdDes, K)
     % Extract state variables
     qAct = x(1:2);      % Joint positions
     qdAct = x(3:4);     % Joint velocities
@@ -69,7 +68,7 @@ function dx = mysf_with_lqr(t, x, l1, l2, m1, m2, qDes, qdDes, K)
     % State error
     e = [qAct - qDes; qdAct - qdDes];
     
-    % Control input using LQR
+    % Control input using pole placement
     Torque = -K * e;
     
     % Compute accelerations
@@ -78,4 +77,3 @@ function dx = mysf_with_lqr(t, x, l1, l2, m1, m2, qDes, qdDes, K)
     % Return derivatives of state variables
     dx = [qdAct(:); qddAct(:)];
 end
-
