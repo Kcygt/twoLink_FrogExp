@@ -63,7 +63,7 @@ function dx = mysf_with_lqr(t, x, l1, l2, m1, m2, qDes, qdDes, Q, R)
     
     % Linearized dynamics (A and B matrices)
     A = [zeros(2), eye(2);
-         eye(2), zeros(2)];
+         zeros(2), zeros(2)];
     B = [zeros(2); eye(2)];
     
     % LQR gain matrix
