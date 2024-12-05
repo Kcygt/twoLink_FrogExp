@@ -5,7 +5,7 @@ l1 = 1; l2 = 1;          % Link lengths
 m1 = 1; m2 = 1;          % Masses
 g = 0;               % Gravity
 F_end_effector = [0; 0]; % External force [Fx; Fy]
-K = 1;                 % Stiffness gain
+K = 100;                 % Stiffness gain
 qAct = [];               % Actual joint positions (initially empty)
 
 % Desired joint position 
@@ -20,6 +20,7 @@ xPos = [xAct(:), yAct(:)];
 % Preallocate force array
 Force = zeros(numel(xAct), 2);  % Size based on meshgrid
 tau = zeros(numel(xAct), 2);  % Size based on meshgrid
+TAU = zeros(numel(xAct), 2);  % Size based on meshgrid
 
 % Loop through the meshgrid to calculate actual joint positions and forces
 for ii = 1:numel(xAct)
@@ -27,14 +28,16 @@ for ii = 1:numel(xAct)
     qAct = [qAct; q1, q2];  % Store joint angles as rows
     
     % Calculate the error between the desired and actual joint positions
-    error = qDes' - [q1; q2];  % Column vector for error
+    e = qDes' - [q1; q2];  % Column vector for error
     
     % Calculate the Jacobian at the current joint angles
     J_current = jacobian_2link(q1, q2, l1, l2);
 
     % Compute the force using the pseudo-inverse of the Jacobian
-    Force(ii, :) = (K * (inv(J_current') * error))';  % Force vector (row)
-    tau(ii,:) = error * K;
+    Force(ii, :) = (K * (inv(J_current') * e))';  % Force vector (row)
+    tau(ii,:) = e * K;
+    TAU(ii, :) = K * e * exp(-e'*K*e);
+
 
 end
 
@@ -42,7 +45,7 @@ end
 figure(1); hold on; grid on;
 plot(qDes(1), qDes(2), '*', 'DisplayName', 'Desired');
 plot(qAct(:, 1), qAct(:, 2), 'o', 'DisplayName', 'Actual');
-quiver(qAct(:, 1), qAct(:, 2), tau(:, 1), tau(:, 2), 'DisplayName', 'Force');
+quiver(qAct(:, 1), qAct(:, 2), TAU(:, 1), TAU(:, 2), 'DisplayName', 'Force');
 xlabel('Joint Angle 1 (rad)');
 ylabel('Joint Angle 2 (rad)');
 title('Actual and Desired Joint Positions with Torques');
