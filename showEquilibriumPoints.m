@@ -35,17 +35,15 @@ for ii = 1:numel(xAct)
 
     % Compute the force using the pseudo-inverse of the Jacobian
     Force(ii, :) = (K * (inv(J_current') * e))';  % Force vector (row)
-    tau(ii,:) = e * K;
+    tau(ii,:) = K * e ;
     TAU(ii, :) = K * e * exp(-e'*K*e);
-
-
 end
 
 % Plot joint and end-effector positions
 figure(1); hold on; grid on;
 plot(qDes(1), qDes(2), '*', 'DisplayName', 'Desired');
 plot(qAct(:, 1), qAct(:, 2), 'o', 'DisplayName', 'Actual');
-quiver(qAct(:, 1), qAct(:, 2), TAU(:, 1), TAU(:, 2), 'DisplayName', 'Force');
+quiver(qAct(:, 1), qAct(:, 2), tau(:, 1), tau(:, 2), 'DisplayName', 'Force');
 xlabel('Joint Angle 1 (rad)');
 ylabel('Joint Angle 2 (rad)');
 title('Actual and Desired Joint Positions with Torques');

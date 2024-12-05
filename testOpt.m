@@ -2,6 +2,7 @@
 time = 0:9; % Time steps
 surface_x = [0 1 2 3 4 5 6 7 8 9]; % Surface x-coordinates
 surface_y = [0 1 -1 2 3 1 0 2 3 0]; % Surface y-coordinates
+
 force = [1 1 0 3 5 5 1 1 2 0]; % Measured forces along y
 path_x = [0 1 2 3 4 5 6 7 8 9]; % Path x-coordinates
 path_y = [0 1 2 1 -1 -2 0 2 1 1]; % Initial path y-coordinates
