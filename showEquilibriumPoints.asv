@@ -15,7 +15,6 @@ qDes = [q1 q2];  % Desired joint angles
 
 % Desired Cartesian positions (meshgrid)
 [xAct, yAct] = meshgrid(0.3:0.3:1.2, 0.3:0.3:1.2);
-xPos = [xAct(:), yAct(:)];
 
 % Preallocate force array
 Force = zeros(numel(xAct), 2);  % Size based on meshgrid
@@ -33,11 +32,10 @@ for ii = 1:numel(xAct)
     J_current = jacobian_2link(q1, q2, l1, l2);
 
     % Compute the force using the pseudo-inverse of the Jacobian
-    Force(ii, :) = (K * (inv(J_current') * error))';  % Force vector (row)
+    Force(ii, :) = (-K * (inv(J_current') * error))';  % Force vector (row)
     tau(ii,:) = error * K;
-
 end
-
+xAct = 
 % Plot joint and end-effector positions
 figure(1); hold on; grid on;
 plot(qDes(1), qDes(2), '*', 'DisplayName', 'Desired');
@@ -51,8 +49,8 @@ legend show;
 % Plot joint and end-effector positions
 figure(2); hold on; grid on;
 plot(xDes(1), xDes(2), '*', 'DisplayName', 'Desired');
-plot(xPos(:, 1), xPos(:, 2), 'o', 'DisplayName', 'Actual');
-quiver(xPos(:, 1), xPos(:, 2), Force(:, 1), Force(:, 2), 'DisplayName', 'Force');
+plot(qAct(:, 1), qAct(:, 2), 'o', 'DisplayName', 'Actual');
+quiver(qAct(:, 1), qAct(:, 2), tau(:, 1), tau(:, 2), 'DisplayName', 'Force');
 xlabel('Joint Angle 1 (rad)');
 ylabel('Joint Angle 2 (rad)');
 title('Actual and Desired Cartesian Positions with Forces');

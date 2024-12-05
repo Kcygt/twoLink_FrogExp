@@ -33,7 +33,7 @@ Force = zeros(n_points, 2); % Store force
 qd_Des_Prev = [0, 0]; % Assuming initial desired velocity is zero
 xd_Des_Prev = [0, 0];
 
-% Co5troller gains
+% Controller gains
 K = 50; % Proportional gain (adjust as needed)
 B = 30; % Derivative gain (adjust as needed)
 
