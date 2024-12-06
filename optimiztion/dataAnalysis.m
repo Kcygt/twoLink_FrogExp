@@ -11,8 +11,6 @@ desired_size = 9000; % Or 800, or any other desired size
 num_knots = size(pos, 1); % Number of points in the input knots
 nint = ceil((desired_size - 1) / (num_knots - 1) + 1); % Calculate nint for the desired size
 
-% Use the calculated nint
-
 % Generate the spline with the adjusted size
 spline = BSpline(pos, 'order', 4, 'nint', nint);
 
