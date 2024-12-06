@@ -1,23 +1,25 @@
+% Load data
 data = load('The_last_Bump_surface.mat');
+
+% get Position and Force data
 step = 2:2500:19001;
 
-
-x = data.trajectory_first(step,3);
-z = data.trajectory_first(step,5);
+pos = [ data.trajectory_first(step,3) data.trajectory_first(step,5)];
 fAct = data.trajectory_first(step,12);
 
-desired_size = 9000; % Desired size for the spline
-num_knots = size(pos, 1); % Number of knots in your data
-nint = ceil((desired_size - 1) / (num_knots - 1)) + 1;
+desired_size = 9000; % Or 800, or any other desired size
+num_knots = size(pos, 1); % Number of points in the input knots
+nint = ceil((desired_size - 1) / (num_knots - 1) + 1); % Calculate nint for the desired size
+
+% Use the calculated nint
 
 % Generate the spline with the adjusted size
 spline = BSpline(pos, 'order', 4, 'nint', nint);
 
 
-pos = [x z];
 % spline = BSpline(pos,'order',4,'nint',100);
 figure(1); hold on; grid on;
-plot(x,z,'*');
+plot(pos(:,1),pos(:,2),'*');
 plot(spline(:,1),spline(:,2))
 
 % figure(2); hold on; grid on;
