@@ -1,7 +1,7 @@
 % Load data
 data = load('The_last_Bump_surface.mat');
 
-% get Position and Force data
+% Get Position and Force data
 step = 2:2500:19001;
 
 pos = [ data.trajectory_first(step,3) data.trajectory_first(step,5)];
@@ -10,35 +10,28 @@ fDes = 1;
 w = .005;
 opt_pos = pos;
 
-% change the position regarding to Force
-% for i = 1:length(pos)
-%     e = (1-fAct(i));
-%     opt_pos(i,2) = pos(i,2) + w * -e * exp(-e'*w*e);
-% end
-% Change the position regarding Force, with sophisticated adjustments
+% Change the position regarding Force
 for i = 1:length(pos)
     e = (fDes - fAct(i)); % Error related to force
     
     % Dynamic weight depending on force
-    dynamic_w = abs(w * (fDes - abs(fAct(i))^2)); % Higher weight for higher forces
+    dynamic_w = abs(w * (fDes - abs(fAct(i))^2)); % Higher weight  higher forces
     
-    % Gradient influence (discrete approximation)
+    % Gradient influence
     if i > 1
-        grad_f = fAct(i) - fAct(i - fDes); % Gradient of force
+        grad_f = fAct(i) - fAct(i - 1);  
     else
-        grad_f = 0; % No gradient for the first point
-    end
+        grad_f = 0;  
+    end   
     
     % Nonlinear adjustment using exponential and gradient
     adjustment = dynamic_w * -e * exp(-e' * dynamic_w * e) * (1 + 0.5 * abs(grad_f));
-    
+
     % Apply adjustment with boundary constraints
     opt_pos(i, 2) = pos(i, 2) + min(max(adjustment, -0.1), 0.1); % Limit adjustment to [-0.1, 0.1]
 end
 
-
-
-desired_size = 1000; % Or 800, or any other desired size
+desired_size = 1000; 
 num_knots = size(pos, 1); % Number of points in the input knots
 nint = ceil((desired_size - 1) / (num_knots - 1) + 1); % Calculate nint for the desired size
 
