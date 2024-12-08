@@ -6,37 +6,13 @@ step = 2:2500:19001;
 
 pos = [ data.trajectory_first(step,3) data.trajectory_first(step,5)];
 fAct = data.trajectory_first(step,12);
-fDes = 1;
-w = .005;
-opt_pos = pos;
+
 
 % change the position regarding to Force
-% for i = 1:length(pos)
-%     e = (1-fAct(i));
-%     opt_pos(i,2) = pos(i,2) + w * -e * exp(-e'*w*e);
-% end
-% Change the position regarding Force, with sophisticated adjustments
 for i = 1:length(pos)
-    e = (fDes - fAct(i)); % Error related to force
-    
-    % Dynamic weight depending on force
-    dynamic_w = abs(w * (fDes - abs(fAct(i))^2)); % Higher weight for higher forces
-    
-    % Gradient influence (discrete approximation)
-    if i > 1
-        grad_f = fAct(i) - fAct(i - fDes); % Gradient of force
-    else
-        grad_f = 0; % No gradient for the first point
-    end
-    
-    % Nonlinear adjustment using exponential and gradient
-    adjustment = dynamic_w * -e * exp(-e' * dynamic_w * e) * (1 + 0.5 * abs(grad_f));
-    
-    % Apply adjustment with boundary constraints
-    opt_pos(i, 2) = pos(i, 2) + min(max(adjustment, -0.1), 0.1); % Limit adjustment to [-0.1, 0.1]
+    opt_pos = pos(i,2) + w * (1-fAct(i));
 end
-
-
+po
 
 desired_size = 1000; % Or 800, or any other desired size
 num_knots = size(pos, 1); % Number of points in the input knots
@@ -50,7 +26,7 @@ spline = BSpline(pos, 'order', 3, 'nint', nint);
 figure(1); hold on; grid on;
 plot(pos(:,1),pos(:,2),'*');
 plot(spline(:,1),spline(:,2))
-plot(opt_pos(:,1),opt_pos(:,2),'o')
+
 % figure(2); hold on; grid on;
 % plot(fAct,'o')
 

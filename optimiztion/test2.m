@@ -1,50 +1,86 @@
-% Given data
-Force_actual = [-0.2264800; 1.0072401; 1.4035800; 1.4721200; 1.5257601; 1.4035800; 0.6615600; 1.0281000];
-Force_desired = [1; 1; 1; 1; 1; 1; 1; 1];
-position_actual = [0.05 -0.1966063;
-                   0.04 -0.1969542;
-                   0.03 -0.1905693;
-                   0.02 -0.1737738;
-                   0.01 -0.1670248;
-                   0.00 -0.1694708;
-                  -0.01 -0.1856128;
-                  -0.02 -0.1981216];
+% Load data
+data = load('The_last_Bump_surface.mat');
 
-% Parameters for optimization
-learning_rate = 0.01; % Step size for position updates
-tolerance = 1e-6;     % Convergence tolerance
-max_iterations = 100; % Maximum iterations
+% Get Position and Force data
+step = 2:2500:19001;
 
-% Initial z-axis positions
-z_current = position_actual(:, 2);
+pos = [data.trajectory_first(step,3), data.trajectory_first(step,5)];
+fAct = data.trajectory_first(step,12);
 
-% Iterative optimization
-for iter = 1:max_iterations
-    % Compute force error
-    Force_error = Force_desired - Force_actual;
+desired_size = 1000; % Desired total number of points
+num_knots = size(pos, 1); % Number of input knots
+
+% Uniform parameterization
+nint = ceil(desired_size / (num_knots - 1)); % Points per segment
+total_points = (num_knots - 1) * nint + 1; % Recalculate total points
+spline = UniformBSpline(pos, 'order', 4, 'nint', nint);
+
+% Plot results
+figure(1); hold on; grid on;
+plot(pos(:,1), pos(:,2), '*'); % Original knots
+plot(spline(1:125,1), spline(1:125,2), '-'); % Interpolated spline
+
+
+
+function BS = UniformBSpline(knots, varargin)
+    ip = inputParser;
+    addOptional(ip, 'order', 3); % B-spline order
+    addOptional(ip, 'nint', 10); % Points per interval
+    addOptional(ip, 'periodic', false); % Periodicity
+    parse(ip, varargin{:});
     
-    % Update z-axis positions based on error (proportional control)
-    z_next = z_current + learning_rate * Force_error;
-    
-    % Update actual force using a simple linear model: Force = k * z
-    k = 10; % Example proportionality constant (adjust based on your system)
-    Force_actual = k * z_next;
-    
-    % Check for convergence (based on force error)
-    if max(abs(Force_error)) < tolerance
-        fprintf('Converged after %d iterations.\n', iter);
-        break;
+    % Handle periodicity
+    if ip.Results.periodic
+        np_rep = ip.Results.order;
+        knots = [knots(end-np_rep+1:end, :); knots; knots(1:np_rep, :)];
     end
     
-    % Update current positions
-    z_current = z_next;
-end
+    % Dimensions
+    p = size(knots, 1); % Number of input points
+    q = size(knots, 2); % Dimensionality of data
+    
+    if p <= 2
+        BS = knots; % Too few points, return input
+        return;
+    end
+    
+    nint = ip.Results.nint; % Points per segment
+    t = linspace(0, 1, nint * (p - 1) + 1); % Uniform parameterization
+    order = min(ip.Results.order, p); % Spline order
+    
+    % Knot vector for clamped spline
+    tk = [zeros(1, order-1), linspace(0, 1, p-order+2), ones(1, order-1)];
+    
+    % Initialize output
+    BS = zeros(length(t), q);
+    basis = zeros(order, q); % Initialize basis array for dimensions
 
-% Display final results
-disp('Optimized z-axis positions:');
-disp(z_current);
-disp('Final Force_actual:');
-disp(Force_actual);
-figure(1); hold on;
-plot(pos(:,1),pos(:,2),'*');
-plot(pos(:,1),z_current,'*');
+    % De Boor's algorithm
+    for i = 1:length(t)
+        t0 = t(i);
+        k = find(t0 >= tk, 1, 'last');
+        k = min(k, p); % Clamp to valid range
+
+        % Initialize basis with the correct dimensionality
+        for d = 1:q % Loop over dimensions
+            basis(:, d) = knots(max(1, k-order+1):min(p, k), d);
+        end
+
+        for j = 2:order
+            for l = j:order
+                alpha = (t0 - tk(k-order+l)) / (tk(k+l-j+1) - tk(k-order+l));
+                alpha(isnan(alpha) | isinf(alpha)) = 0; % Handle edge cases
+                for d = 1:q % Loop over dimensions
+                    basis(l, d) = (1-alpha) * basis(l-1, d) + alpha * basis(l, d);
+                end
+            end
+        end
+        BS(i, :) = basis(order, :);
+    end
+    
+    % Handle periodicity output
+    if ip.Results.periodic
+        BS = BS(1:end-nint+1, :);
+        BS(end, :) = BS(1, :);
+    end
+end
