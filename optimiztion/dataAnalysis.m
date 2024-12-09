@@ -7,36 +7,71 @@ step = 2:2500:19001;
 pos = [ data.trajectory_first(step,3) data.trajectory_first(step,5)];
 fAct = data.trajectory_first(step,12);
 fDes = 1;
-w = .005;
+w = .008;
 opt_pos = pos;
 
 % Change the position regarding Force
 for i = 1:length(pos)
     e = (fDes - fAct(i)); % Error related to force
-    
+
     % Dynamic weight depending on force
     dynamic_w = abs(w * (fDes - abs(fAct(i))^2)); % Higher weight  higher forces
-    
+
     % Gradient influence
     if i > 1
         grad_f = fAct(i) - fAct(i - 1);  
     else
         grad_f = 0;  
     end   
+    % Force sensor characteristic
     
-    % Nonlinear adjustment using exponential and gradient
-    adjustment = dynamic_w * -e * exp(-e' * dynamic_w * e) * (1 + 0.5 * abs(grad_f));
+    % Velocity Effect
+    % V_new = V_old - alpha * abs(fDes - fAct)
+    % exponential and gradient
+    adjustment = dynamic_w * -e * exp(-e' * dynamic_w * e) *  (1 + abs(grad_f));
 
-    % Apply adjustment with boundary constraints
-    opt_pos(i, 2) = pos(i, 2) + min(max(adjustment, -0.1), 0.1); % Limit adjustment to [-0.1, 0.1]
+    % boundary constraints
+    opt_pos(i, 2) = pos(i, 2) + min(max(adjustment, -0.05), 0.05); % Limit adjustment to [-0.1, 0.1]
 end
+% for i = 1:length(pos)
+%     % Force error
+%     e = (fDes - fAct(i)); 
+% 
+%     % Dynamic weight with normalization and higher-order terms
+%     dynamic_w = abs(w * (fDes - abs(fAct(i))^2)) / (1 + norm(fAct(i))^2);
+% 
+%     % Gradient and second derivative influence
+%     if i > 1
+%         grad_f = fAct(i) - fAct(i - 1);  
+%         if i > 2
+%             grad_f2 = (fAct(i) - 2 * fAct(i - 1) + fAct(i - 2)); % Second derivative
+%         else
+%             grad_f2 = 0;
+%         end
+%     else
+%         grad_f = 0;  
+%         grad_f2 = 0;
+%     end   
+% 
+%     % Time-dependent decay or growth factor
+%     time_factor = exp(-alpha * i / length(pos));
+% 
+%     % Coupled position adjustment with nonlinear terms
+%     adjustment = dynamic_w * -e * exp(-e' * dynamic_w * e) * (1 + beta * abs(grad_f)) ...
+%                  + gamma * sin(grad_f2) * time_factor ...
+%                  + delta * cos(e' * grad_f);
+% 
+%     % Boundary constraints with nonlinear saturation
+%     opt_pos(i, 2) = pos(i, 2) + tanh(min(max(adjustment, -0.05), 0.05)); % Smoother bounds
+% end
 
 desired_size = 1000; 
-num_knots = size(pos, 1); % Number of points in the input knots
-nint = ceil((desired_size - 1) / (num_knots - 1) + 1); % Calculate nint for the desired size
+num_knots = size(pos, 1); % Number of points
+nint = ceil((desired_size - 1) / (num_knots - 1) + 1); 
 
 % Generate the spline with the adjusted size
-spline = BSpline(pos, 'order', 3, 'nint', nint);
+spline = BSpline(pos, 'order', 4, 'nint', nint);
+spline_opt = BSpline(opt_pos, 'order', 3, 'nint', nint);
 
 
 % spline = BSpline(pos,'order',4,'nint',100);
@@ -44,6 +79,8 @@ figure(1); hold on; grid on;
 plot(pos(:,1),pos(:,2),'*');
 plot(spline(:,1),spline(:,2))
 plot(opt_pos(:,1),opt_pos(:,2),'o')
+plot(spline_opt(:,1),spline_opt(:,2))
+
 % figure(2); hold on; grid on;
 % plot(fAct,'o')
 
