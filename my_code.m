@@ -6,7 +6,7 @@ l1 = 1; l2 = 1; % Link lengths
 m1 = 1; m2 = 1; % Masses
 g = 0;
 
-qDes = [pi/80; 0];
+qDes = [pi/8; pi/4];
 qdDes = [0;0];
 
 % Controller gains

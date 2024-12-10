@@ -10,24 +10,24 @@ g = 0;
 t = linspace(0, 5, 501)'; % Time vector (5 seconds, 501 points)
 
 % Desired Joint Trajectory
-qDes = [ones(length(t), 1) * pi / 4, ones(length(t), 1) * pi / 4];
+xDes = [1 ,1];
 
 % Controller gains
-K = 100; % Proportional gain
-B = 40; % Derivative gain
+K = 3; % Proportional gain
+B = .1; % Derivative gain
 
 % Initial joint angles and velocities
-q0 = [0; 0]; % Initial joint angles
-qd0 = [0; 0]; % Initial joint velocities
-initial_state = [q0; qd0];
+x0 = [0.5;1]; % Initial joint angles
+xd0 = [0; 0]; % Initial joint velocities
+initial_state = [x0; xd0];
 
 
 % Solve the ODE
 [t, state] = ode45(@(t, x) robot_dynamics(t, x, l1, l2, m1, m2, g, K, B), t, initial_state);
 
 % Extract results
-qPos = state(:, 1:2); % Joint positions
-qVel = state(:, 3:4); % Joint velocities
+xPos = state(:, 1:2); % Joint positions
+xVel = state(:, 3:4); % Joint velocities
 
 % Compute end-effector positions
 xPos = zeros(length(t), 2);
@@ -83,3 +83,58 @@ plot(xPos(end, 1), xPos(end, 2), '*', 'DisplayName', 'Last Position');
 quiver(xPos(step, 1), xPos(step, 2), Force(step, 1), Force(step, 2));
 legend show;
 
+
+function dxdt = robot_dynamics(t, x, l1, l2, m1, m2, g, K, B)
+    % Unpack state variables
+    X = x(1:2);
+    Xd = x(3:4);
+    Xdd = x(5:6); % Integral of outputtt
+    
+    % Desired trajectory
+    X_des = [1; 1]; % Fix for simplicity
+    Xd_des = [0; 0];
+
+    % Error in position and velocity
+    e = X - X_des;
+    eDot = Xd - Xd_des;
+    
+    % PD control with gravity compensation
+    Q = inverse_kinematics(X(1), X(2), l1, l2);
+    J = jacobian_2link(Q(1), Q(2), l1, l2);
+    
+    % Dynamics
+    M = mass_matrix(Q(1), Q(2), l1, l2, m1, m2);
+    G = gravity_vector(Q(1), Q(2), l1, l2, m1, m2, 0,0);
+    
+    % Output force computation
+    Qd = inv(J) * (-K * e);
+
+    % Compute integral of outputtt
+    outputtt_dot = Qd; % Rate of change is just outputtt
+    Xdd = Xdd + outputtt_dot * (t(2) - t(1)); % Integration over timestep
+    
+    % State derivatives
+    Xdd = M \ (Qd - G); % Joint accelerations
+    dxdt = [Xd; Xdd; outputtt_dot];
+end
+
+% Function Definitions
+function P = forward_kinematics(q1, q2, l1, l2)
+    x = l1*cos(q1) + l2*cos(q1 + q2);
+    y = l1*sin(q1) + l2*sin(q1 + q2);
+    P = [x, y];
+end
+
+function qDes = inverse_kinematics(x, y, l1, l2)
+    r = sqrt(x^2 + y^2);
+    if r > (l1 + l2) || r < abs(l1 - l2)
+        error('Target point is out of reach');
+    end
+    cos_q2 = (r^2 - l1^2 - l2^2) / (2 * l1 * l2);
+    sin_q2 = sqrt(1 - cos_q2^2); 
+    q2 = atan2(sin_q2, cos_q2);
+    phi = atan2(y, x);
+    psi = atan2(l2 * sin(q2), l1 + l2 * cos(q2));
+    q1 = phi - psi;
+    qDes = [q1, q2];
+end

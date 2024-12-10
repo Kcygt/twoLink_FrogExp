@@ -1,12 +1,12 @@
 close all;
 
 % Parameters
-l1 = 1; l2 = 1;          % Link lengths
-m1 = 1; m2 = 1;          % Masses
-g = 0;               % Gravity
-F_end_effector = [0; 0]; % External force [Fx; Fy]
-K = 100;                 % Stiffness gain
-qAct = [];               % Actual joint positions (initially empty)
+l1 = 1; l2 = 1;           % Link lengths
+m1 = 1; m2 = 1;           % Masses
+g = 0;                    % Gravity
+F_end_effector = [0; 0];  % External force [Fx; Fy]
+K = 100;                  % Stiffness gain
+qAct = [];                % Actual joint positions (initially empty)
 
 % Desired joint position 
 xDes = [0.75; 0.75];
