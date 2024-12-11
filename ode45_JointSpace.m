@@ -11,6 +11,7 @@ t = linspace(0, 5, 501)'; % Time vector (5 seconds, 501 points)
 
 % Desired Joint Trajectory
 qDes = [ones(length(t), 1) * pi / 4, ones(length(t), 1) * pi / 4];
+xDes = forward_kinematics(qDes(:,1), qDes(:,2), l1, l2);
 
 % Controller gains
 K = 100; % Proportional gain
@@ -30,7 +31,7 @@ qPos = state(:, 1:2); % Joint positions
 qVel = state(:, 3:4); % Joint velocities
 
 % Compute end-effector positions
-xPos = zeros(length(t), 2);
+xAct = zeros(length(t), 2);
 Force = zeros(length(t), 2);
 tau = zeros(length(t), 2);
 
@@ -45,7 +46,7 @@ for i = 1:length(t)
     Torque = -K * e - B * eDot;
 
     % Store data
-    xPos(i, :) = forward_kinematics(q(1), q(2), l1, l2);
+    xAct(i, :) = forward_kinematics(q(1), q(2), l1, l2);
     Force(i, :) = (-K * (inv(J_current') * Torque))';
     tau(i, :) = Torque';
 end
@@ -69,8 +70,9 @@ legend show;
 
 % Cartesian Space
 figure(3); hold on; grid on;
-plot(t, xPos(:, 1), '--', 'DisplayName', 'End Effector Desired X');
-plot(t, xPos(:, 2), '--', 'DisplayName', 'End Effector Desired Y');
+plot(xDes(:, 1),xDes(:, 2), 'o', 'DisplayName', 'End Effector Desired');
+plot(xAct(:, 1),xAct(:, 2), '*', 'DisplayName', 'End Effector Actual');
+
 xlabel('Time (s)');
 ylabel('End Effector Position');
 title('Cartesian Space Trajectory Following');
@@ -78,9 +80,9 @@ legend show;
 
 figure(4); hold on; grid on;
 step = 50:501;
-plot(xPos(1, 1), xPos(1, 2), '*', 'DisplayName', 'First Position');
-plot(xPos(end, 1), xPos(end, 2), '*', 'DisplayName', 'Last Position');
-quiver(xPos(step, 1), xPos(step, 2), Force(step, 1), Force(step, 2));
+plot(xAct(1, 1), xAct(1, 2), '*', 'DisplayName', 'First Position');
+plot(xAct(end, 1), xAct(end, 2), '*', 'DisplayName', 'Last Position');
+quiver(xAct(step, 1), xAct(step, 2), Force(step, 1), Force(step, 2));
 legend show;
 
 
@@ -102,12 +104,6 @@ function dxdt = robot_dynamics(t, x, l1, l2, m1, m2, g, K, B)
     G = gravity_vector(q(1), q(2), l1, l2, m1, m2, 0,0);
     C = coriolis_matrix(q(1), q(2), qd(1), qd(2), l1, l2, m1, m2);
     
-    l = [l1, l2] ;
-    m = [m1, m2]; 
-    theta = [q(1), q(2)];
-    dtheta = [ qd(1), qd(2)];
-
-    [MM, CC, GG] = dynamics(theta, dtheta, l, m, g);
     % PD control with gravity compensation
     Torque = -K * e - B * eDot;
 
@@ -137,33 +133,3 @@ function qDes = inverse_kinematics(x, y, l1, l2)
     qDes = [q1, q2];
 end
 
-function [M, C, G] = dynamics(theta, dtheta, l, m, g)
-    % Inputs:
-    % theta: [theta1, theta2]
-    % dtheta: [dtheta1, dtheta2]
-    % l: [l1, l2] link lengths
-    % m: [m1, m2] link masses
-    % g: gravitational constant
-
-    l1 = l(1);
-    l2 = l(2);
-    m1 = m(1);
-    m2 = m(2);
-    I1 = (1/3) * m1 * l1^2; % Moment of inertia (approx. rod pivoted at one end)
-    I2 = (1/3) * m2 * l2^2;
-    
-    % Inertia Matrix
-    M = [I1 + I2 + m2 * (l1^2 + l2^2 + 2 * l1 * l2 * cos(theta(2))), ...
-         I2 + m2 * (l2^2 + l1 * l2 * cos(theta(2)));
-         I2 + m2 * (l2^2 + l1 * l2 * cos(theta(2))), ...
-         I2 + m2 * l2^2];
-    
-    % Coriolis/Centrifugal Matrix
-    C = [-m2 * l1 * l2 * sin(theta(2)) * dtheta(2), ...
-         -m2 * l1 * l2 * sin(theta(2)) * (dtheta(1) + dtheta(2));
-          m2 * l1 * l2 * sin(theta(2)) * dtheta(1), 0];
-    
-    % Gravity Vector
-    G = [m1 * g * (l1 / 2) * cos(theta(1)) + m2 * g * (l1 * cos(theta(1)) + (l2 / 2) * cos(theta(1) + theta(2)));
-         m2 * g * (l2 / 2) * cos(theta(1) + theta(2))];
-end
