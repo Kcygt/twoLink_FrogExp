@@ -10,7 +10,9 @@ g = 0;
 t = linspace(0, 5, 501)'; % Time vector (5 seconds, 501 points)
 
 % Desired Joint Trajectory
-qDes = [ones(length(t), 1) * -pi / 4, ones(length(t), 1) * pi / 4];
+qDes = [ones(length(t), 1) * pi / 4, ones(length(t), 1) * pi / 4];
+qDes = [ones(length(t), 1) * pi / 2, ones(length(t), 1) * 0];
+
 xDes = forward_kinematics(qDes(:,1), qDes(:,2), l1, l2);
 
 % Controller gains
