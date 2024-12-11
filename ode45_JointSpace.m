@@ -10,7 +10,7 @@ g = 0;
 t = linspace(0, 5, 501)'; % Time vector (5 seconds, 501 points)
 
 % Desired Joint Trajectory
-qDes = [ones(length(t), 1) * pi / 4, ones(length(t), 1) * pi / 4];
+qDes = [ones(length(t), 1) * -pi / 4, ones(length(t), 1) * pi / 4];
 xDes = forward_kinematics(qDes(:,1), qDes(:,2), l1, l2);
 
 % Controller gains
@@ -24,7 +24,7 @@ initial_state = [q0; qd0];
 
 
 % Solve the ODE
-[t, state] = ode45(@(t, x) robot_dynamics(t, x, l1, l2, m1, m2, g, K, B), t, initial_state);
+[t, state] = ode45(@(t, x) robot_dynamics(t, x, l1, l2, m1, m2, g, K, B, qDes), t, initial_state);
 
 % Extract results
 qPos = state(:, 1:2); % Joint positions
@@ -86,13 +86,13 @@ quiver(xAct(step, 1), xAct(step, 2), Force(step, 1), Force(step, 2));
 legend show;
 
 
-function dxdt = robot_dynamics(t, x, l1, l2, m1, m2, g, K, B)
+function dxdt = robot_dynamics(t, x, l1, l2, m1, m2, g, K, B, Q)
     % Unpack state variables
     q = x(1:2);
     qd = x(3:4);
 
     % Desired trajectory
-    q_des = [pi/4; pi/4]; % Fix for simplicity
+    q_des = [Q(1,1); Q(1,2)]; % Fix for simplicity
     qd_des = [0; 0];
 
     % Error in position and velocity
