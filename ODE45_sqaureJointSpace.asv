@@ -1,0 +1,115 @@
+
+
+
+% Parameters
+l1 = 1; l2 = 1; % Link lengths
+m1 = 1; m2 = 1; % Masses
+g = 0;
+
+% Trajectory definition (e.g., sinusoidal)
+tspan = [0 20]; % Time vector (5 seconds, 501 points)
+
+% Desired Joint Trajectory
+% qDes = [ones(length(t), 1) * pi / 4, ones(length(t), 1) * pi / 4];
+% qDes = [ones(length(t), 1) * pi / 2, ones(length(t), 1) * 0];
+% qDes = [ones(length(t), 1) * 0, ones(length(t), 1) * pi/2];
+qDes = [ 0.1296, 1.9552;    -0.1205    2.2065; 0.0, 1.5708; -0.5139, 1.9552; -0.4240, 2.4189;];
+xDes = forward_kinematics(qDes(:,1), qDes(:,2), l1, l2);
+
+% Controller gains
+K = 100; % Proportional gain
+B = 40; % Derivative gain
+
+% Initial joint angles and velocities
+q0 = [-0.4240; 2.4189]; % Initial joint angles
+qd0 = [0; 0]; % Initial joint velocities
+initial_state = [q0; qd0];
+
+
+% Solve the ODE
+[t, state] = ode45(@(t, x) robot_dynamics(t, x, l1, l2, m1, m2, g, K, B, qDes), tspan, initial_state);
+
+% Extract results
+qPos = state(:, 1:2); % Joint positions
+qVel = state(:, 3:4); % Joint velocities
+
+
+xAct = forward_kinematics(qPos(:,1), qPos(:,2), l1, l2);
+
+
+% Plot trajectory
+
+
+% Cartesian Space
+figure(3); hold on; grid on;
+plot(xAct(:, 1),xAct(:, 2), '*', 'DisplayName', 'End Effector Actual');
+plot(xDes(:, 1),xDes(:, 2), 'o', 'DisplayName', 'End Effector Desired');
+
+xlabel('Time (s)');
+ylabel('End Effector Position');
+title('Cartesian Space Trajectory Following');
+legend show;
+
+
+function dxdt = robot_dynamics(t, x, l1, l2, m1, m2, g, K, B, Q)
+    % Unpack state variables
+    q = x(1:2);
+    qd = x(3:4);
+    val = 20/5;
+    if t >0 && t<= val
+        q_des = [Q(1,1); Q(1,2)]; % Fix for simplicity
+    
+    elseif t > val && t<= val*2
+        q_des = [Q(2,1); Q(2,2)]; % Fix for simplicity
+    
+    elseif t > val*3 && t<=val*4
+        q_des = [Q(3,1); Q(3,2)]; % Fix for simplicity
+
+    elseif 
+        q_des = [Q(4,1); Q(4,2)]; % Fix for simplicity
+
+    
+    end
+    disp(t)
+    
+    % Desired trajectory
+    qd_des = [0; 0];
+
+    % Error in position and velocity
+    e = q - q_des;
+    eDot = qd - qd_des;
+
+    % Dynamics
+    M = mass_matrix(q(1), q(2), l1, l2, m1, m2);
+    G = gravity_vector(q(1), q(2), l1, l2, m1, m2, 0,0);
+    C = coriolis_matrix(q(1), q(2), qd(1), qd(2), l1, l2, m1, m2);
+    
+    % PD control with gravity compensation
+    Torque = -K * e - B * eDot;
+
+    % State derivatives
+    qdd = M \ (Torque - C * qd - G); % Joint accelerations
+    dxdt = [qd; qdd];
+end
+
+% Function Definitions
+function P = forward_kinematics(q1, q2, l1, l2)
+    x = l1*cos(q1) + l2*cos(q1 + q2);
+    y = l1*sin(q1) + l2*sin(q1 + q2);
+    P = [x, y];
+end
+
+function qDes = inverse_kinematics(x, y, l1, l2)
+    r = sqrt(x^2 + y^2);
+    if r > (l1 + l2) || r < abs(l1 - l2)
+        error('Target point is out of reach');
+    end
+    cos_q2 = (r^2 - l1^2 - l2^2) / (2 * l1 * l2);
+    sin_q2 = sqrt(1 - cos_q2^2); 
+    q2 = atan2(sin_q2, cos_q2);
+    phi = atan2(y, x);
+    psi = atan2(l2 * sin(q2), l1 + l2 * cos(q2));
+    q1 = phi - psi;
+    qDes = [q1, q2];
+end
+
