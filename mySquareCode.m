@@ -9,12 +9,20 @@ tspan = [0 20]; % Total simulation time
 % Desired Joint Trajectory
 qDes = [
     -0.2936    2.3392 ;% second middle
+    % -0.2       2.26;
     -0.1205    2.2065 ;% first middle
+    % -0.04      2.13;
     0.0337     2.0601; % second middle
+    % 0.07       2;
     0.1296    1.9552; % main
+    % 0.1       1.92;
     0.0821     1.8965 ;% second middle
+    % 0.055      1.84;
     0.0316     1.7913 ;% first middle
+    % 0.015      1.72;
     0.0050     1.6659 ;% second middle
+    % 0.002      1.62;
+    
     0.0,       1.5708; % main
     -0.1002    1.6659;% second middle
     -0.2522    1.7913 ;% first middle
@@ -28,8 +36,8 @@ qDes = [
 xDes = forward_kinematics(qDes(:, 1), qDes(:, 2), l1, l2);
 
 % Controller gains
-K = 40; % Proportional gain
-B = 20; % Derivative gain
+K = 100; % Proportional gain
+B = 50; % Derivative gain
 
 % Initial joint angles and velocities
 q0 = [-0.4240; 2.4189]; % Initial joint angles
