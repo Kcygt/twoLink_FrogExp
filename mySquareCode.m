@@ -51,7 +51,7 @@ initial_state = [q0; qd0];
 qPos = state(:, 1:2); % Joint positions
 qVel = state(:, 3:4); % Joint velocities
 xAct = forward_kinematics(qPos(:, 1), qPos(:, 2), l1, l2);
-
+xVel = [diff(xAct(:,1)), diff(xAct(:,2))];
 % Plot trajectory
 figure(1); hold on; grid on;
 plot(xAct(:, 1), xAct(:, 2), '-', 'DisplayName', 'End Effector Actual');
@@ -61,6 +61,8 @@ ylabel('Y Position');
 title('Cartesian Space Trajectory Following');
 legend show;
 
+figure(2); hold on; grid on;
+quiver(xAct(2:end,1),xAct(2:end,2),xVel(:,1),xVel(:,2))
 % Functions
 function dxdt = robot_dynamics(t, x, l1, l2, m1, m2, g, K, B, Q, tspan)
 % Unpack state variables
