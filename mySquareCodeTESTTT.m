@@ -7,50 +7,23 @@ g = 0;
 tspan = [0 16]; % Total simulation time
 
 % Prefilter
-K = 1;
 Wn = 10;
 sigma = 1;
 
-% num = (K * Wn)^2;
-% den = [1 2*sigma*Wn Wn^2];
+num = Wn^2;
+den = [1 2*sigma*Wn Wn^2];
 
-num2 = 1;
-den2 = [1 Wn];
-
-% Prefilter = tf(num,den);
 Prefilter = tf(num,den);
 
 % Desired Joint Trajectory
-qDes = [
-    % -0.2936    2.3392 ;% second middle
-    % -0.2       2.26;
-    % -0.1205    2.2065 ;% first middle
-    % -0.04      2.13;
-    % 0.0337     2.0601; % second middle
-    % 0.07       2;
-    0.1296    1.9552; % MAIN
-    % 0.1       1.92;
-    % 0.0821     1.8965 ;% second middle
-    % 0.055      1.84;
-    % 0.0316     1.7913 ;% first middle
-    % 0.015      1.72;
-    % 0.0050     1.6659 ;% second middle
-    % 0.002      1.62;
+qDes = [0.1296,  1.9552;   % MAIN
+        0.0,     1.5708;   % MAIN
+       -0.5139,  1.9552;   % MAIN
+       -0.4240,  2.4189 ]; % MAIN
 
-    0.0,       1.5708; % MAIN
-    % -0.1002    1.6659;% second middle
-    % -0.2522    1.7913 ;% first middle
-    % -0.4078    1.8965;% second middle
-    -0.5139   1.9552; % MAIN
-    % -0.5229    2.0601 ;%  second middle
-    % -0.5153    2.2065 ;% first middle
-    % -0.4749    2.3392; %  second middle
-    -0.4240,   2.4189 % MAIN
-    ]; % Modify as needed
-
-t = linspace(0, 16, length(qDes)+1); % Time vector
+t = linspace(0, 4, length(qDes)); % Time vector
 qDesF = zeros(length(qDes),2);
-qDes = 
+
 qDesF(:,1) = lsim(Prefilter,qDes(:,1),t);
 qDesF(:,2) = lsim(Prefilter,qDes(:,2),t);
 

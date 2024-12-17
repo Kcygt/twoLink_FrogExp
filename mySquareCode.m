@@ -4,36 +4,58 @@ m1 = 1; m2 = 1; % Masses
 g = 0;
 
 % Trajectory definition (e.g., sinusoidal)
-tspan = [0 20]; % Total simulation time
+tspan = [0 16]; % Total simulation time
+
+% Prefilter
+K = 1;
+Wn = 10;
+sigma = 1;
+
+num = (K * Wn)^2;
+den = [1 2*sigma*Wn Wn^2];
+
+% num = 1;
+% den = [1 Wn];
+
+Prefilter = tf(num,den);
 
 % Desired Joint Trajectory
 qDes = [
-    -0.2936    2.3392 ;% second middle
+    % -0.2936    2.3392 ;% second middle
     % -0.2       2.26;
-    -0.1205    2.2065 ;% first middle
+    % -0.1205    2.2065 ;% first middle
     % -0.04      2.13;
-    0.0337     2.0601; % second middle
+    % 0.0337     2.0601; % second middle
     % 0.07       2;
-    0.1296    1.9552; % main
+    0.1296    1.9552; % MAIN
     % 0.1       1.92;
-    0.0821     1.8965 ;% second middle
+    % 0.0821     1.8965 ;% second middle
     % 0.055      1.84;
-    0.0316     1.7913 ;% first middle
+    % 0.0316     1.7913 ;% first middle
     % 0.015      1.72;
-    0.0050     1.6659 ;% second middle
+    % 0.0050     1.6659 ;% second middle
     % 0.002      1.62;
-    
-    0.0,       1.5708; % main
-    -0.1002    1.6659;% second middle
-    -0.2522    1.7913 ;% first middle
-    -0.4078    1.8965;% second middle
-    -0.5139   1.9552; % main
-     -0.5229    2.0601 ;%  second middle
-    -0.5153    2.2065 ;% first middle
-      -0.4749    2.3392; %  second middle
-    -0.4240,   2.4189 % main
+
+    0.0,       1.5708; % MAIN
+    % -0.1002    1.6659;% second middle
+    % -0.2522    1.7913 ;% first middle
+    % -0.4078    1.8965;% second middle
+    -0.5139   1.9552; % MAIN
+    % -0.5229    2.0601 ;%  second middle
+    % -0.5153    2.2065 ;% first middle
+    % -0.4749    2.3392; %  second middle
+    -0.4240,   2.4189 % MAIN
     ]; % Modify as needed
+
+t = linspace(0, 16, length(qDes)+1); % Time vector
+qDesF = zeros(length(qDes)+1,2);
+qDes = [qDes(1,:);qDes];
+
+qDesF(:,1) = lsim(Prefilter,qDes(:,1),t,-0.4240);
+qDesF(:,2) = lsim(Prefilter,qDes(:,2),t,2.4189);
+
 xDes = forward_kinematics(qDes(:, 1), qDes(:, 2), l1, l2);
+
 
 % Controller gains
 K = 100; % Proportional gain
@@ -55,8 +77,10 @@ xAct = forward_kinematics(qPos(:, 1), qPos(:, 2), l1, l2);
 xVel = [quickdiff(t,xAct(:,1)), quickdiff(t,xAct(:,2))];
 xVelJ = zeros(size(xAct));
 for i=1:length(t)
-   xVelJ(i,:) = jacobian_2link(qPos(i,1),qPos(i,2),1,1) * qVel(i,:)'; 
+    xVelJ(i,:) = jacobian_2link(qPos(i,1),qPos(i,2),1,1) * qVel(i,:)';
 end
+
+
 
 % Plot trajectory
 figure(1); hold on; grid on;
@@ -69,11 +93,14 @@ legend show;
 
 figure(2); hold on; grid on;
 quiver(xAct(:,1),xAct(:,2),xVel(:,1),xVel(:,2))
+
+
 % Functions
 function dxdt = robot_dynamics(t, x, l1, l2, m1, m2, g, K, B, Q, tspan)
 % Unpack state variables
 q = x(1:2);
 qd = x(3:4);
+
 
 % Determine current waypoint
 num_waypoints = size(Q, 1);
@@ -101,11 +128,13 @@ qdd = M \ (Torque - C * qd - G);
 dxdt = [qd; qdd];
 end
 
+
 function P = forward_kinematics(q1, q2, l1, l2)
 x = l1 * cos(q1) + l2 * cos(q1 + q2);
 y = l1 * sin(q1) + l2 * sin(q1 + q2);
 P = [x, y];
 end
+
 
 function qDes = inverse_kinematics(x, y, l1, l2)
 r = sqrt(x^2 + y^2);
@@ -121,6 +150,7 @@ q1 = phi - psi;
 qDes = [q1, q2];
 end
 
+
 function M = mass_matrix(q1, q2, l1, l2, m1, m2)
 M = [
     (m1 + m2) * l1^2 + m2 * l2^2 + 2 * m2 * l1 * l2 * cos(q2), m2 * l2^2 + m2 * l1 * l2 * cos(q2);
@@ -128,12 +158,14 @@ M = [
     ];
 end
 
+
 function G = gravity_vector(q1, q2, l1, l2, m1, m2, g1, g2)
 G = [
     -(m1 + m2) * g1 * l1 * sin(q1) - m2 * g2 * l2 * sin(q1 + q2);
     -m2 * g2 * l2 * sin(q1 + q2)
     ];
 end
+
 
 function C = coriolis_matrix(q1, q2, q1d, q2d, l1, l2, m1, m2)
 h = -m2 * l1 * l2 * sin(q2);
