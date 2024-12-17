@@ -21,11 +21,22 @@ qDes = [0.1296,  1.9552;   % MAIN
        -0.5139,  1.9552;   % MAIN
        -0.4240,  2.4189 ]; % MAIN
 
+x = 1:length(qDes(:,1)); % Define the indices of the original points
+xi = linspace(1, length(qDes), (length(qDes)-1)*1000 + 1); % Generate 1000 points between each pair
+xout = interp1(x, qDes(:,1), xi, 'linear'); % Linear interpolation
+
+y = 1:length(qDes(:,2)); % Define the indices of the original points
+yi = linspace(1, length(qDes), (length(qDes)-1)*1000 + 1); % Generate 1000 points between each pair
+yout = interp1(y, qDes(:,2), yi, 'linear'); % Linear interpolation
+
+qDes = [xout' yout'];
+
+
 t = linspace(0, 4, length(qDes)); % Time vector
 qDesF = zeros(length(qDes),2);
 
-qDesF(:,1) = lsim(Prefilter,qDes(:,1),t);
-qDesF(:,2) = lsim(Prefilter,qDes(:,2),t);
+qDesF(:,1) = lsim(Prefilter,qDes(:,1),t,-0.4240);
+qDesF(:,2) = lsim(Prefilter,qDes(:,2),t,2.4189);
 
 xDes = forward_kinematics(qDes(:, 1), qDes(:, 2), l1, l2);
 

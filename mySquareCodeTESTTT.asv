@@ -7,11 +7,11 @@ g = 0;
 tspan = [0 16]; % Total simulation time
 
 % Prefilter
-Wn = 20;
+Wn = 10;
 sigma = 1;
 
-num = K*Wn^2;
-den = [1 2*sigm];
+num = Wn^2;
+den = [1 2*sigma*Wn Wn^2];
 
 Prefilter = tf(num,den);
 
@@ -21,12 +21,17 @@ qDes = [0.1296,  1.9552;   % MAIN
        -0.5139,  1.9552;   % MAIN
        -0.4240,  2.4189 ]; % MAIN
 
-t = linspace(0, 16, length(qDes)+1); % Time vector
-qDesF = zeros(length(qDes)+1,2);
-qDes = [qDes(1,:);qDes];
+x = 1:length(qDes(:,1)); % Define the indices of the original points
 
-qDesF(:,1) = lsim(Prefilter,qDes(:,1),t,-0.4240);
-qDesF(:,2) = lsim(Prefilter,qDes(:,2),t,2.4189);
+xi = linspace(1, length(qDes), (length(qDes)-1)*1000 + 1); % Generate 1000 points between each pair
+qInterp = interp1(x, qDes, xi, 'linear'); % Linear interpolation
+
+
+t = linspace(0, 4, length(qDes)); % Time vector
+qDesF = zeros(length(qDes),2);
+
+qDesF(:,1) = lsim(Prefilter,qDes(:,1),t);
+qDesF(:,2) = lsim(Prefilter,qDes(:,2),t);
 
 xDes = forward_kinematics(qDes(:, 1), qDes(:, 2), l1, l2);
 
