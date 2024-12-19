@@ -4,45 +4,37 @@ m1 = 1; m2 = 1; % Masses
 g = 0;
 
 % Trajectory definition (e.g., sinusoidal)
-tspan = [0 16]; % Total simulation time
+tspan = [0 20]; % Total simulation time
 
 % Prefilter
-Wn = 10;
+Wn = 30;
 sigma = 1;
-
 num = Wn^2;
 den = [1 2*sigma*Wn Wn^2];
-
 Prefilter = tf(num,den);
 
 % Desired Joint Trajectory
-qDes = [0.1296,  1.9552;   % MAIN
+qDes = [-0.4240, 2.4189;
+        0.1296,  1.9552;   % MAIN
         0.0,     1.5708;   % MAIN
        -0.5139,  1.9552;   % MAIN
        -0.4240,  2.4189 ]; % MAIN
 
-x = 1:length(qDes(:,1)); % Define the indices of the original points
-xi = linspace(1, length(qDes), (length(qDes)-1)*1000 + 1); % Generate 1000 points between each pair
-xout = interp1(x, qDes(:,1), xi, 'linear'); % Linear interpolation
-
-y = 1:length(qDes(:,2)); % Define the indices of the original points
-yi = linspace(1, length(qDes), (length(qDes)-1)*1000 + 1); % Generate 1000 points between each pair
-yout = interp1(y, qDes(:,2), yi, 'linear'); % Linear interpolation
-
-qDes = [xout' yout'];
+xi = linspace(1, size(qDes, 1), size(qDes, 1) * 1000 + 1); % Interpolation indices
+qDes = [interp1(1:size(qDes, 1), qDes(:,1), xi, 'linear')', ...
+        interp1(1:size(qDes, 1), qDes(:,2), xi, 'linear')'];
 
 
-t = linspace(0, 4, length(qDes)); % Time vector
-qDesF = zeros(length(qDes),2);
+t = linspace(0, tspan(2), length(qDes)); % Time vector
+qDesF = [lsim(Prefilter, qDes(:,1), t, qDes(1,1)), lsim(Prefilter, qDes(:,2), t, qDes(1,2))];
 
-qDesF(:,1) = lsim(Prefilter,qDes(:,1),t,-0.4240);
-qDesF(:,2) = lsim(Prefilter,qDes(:,2),t,2.4189);
+step = 50;
+qDesF(1:step,:) = [ones(step,1) * -0.4240, ones(step,1)*2.4189];  % it start from [0,0]
 
-xDes = forward_kinematics(qDes(:, 1), qDes(:, 2), l1, l2);
-
+xDes = forward_kinematics(qDesF(:, 1), qDesF(:, 2), l1, l2);
 
 % Controller gains
-K = 100; % Proportional gain
+K = 60; % Proportional gain
 B = 50; % Derivative gain
 
 % Initial joint angles and velocities
@@ -51,33 +43,36 @@ qd0 = [0; 0]; % Initial joint velocities
 initial_state = [q0; qd0];
 
 % Solve the ODE
-[t, state] = ode45(@(t, x) robot_dynamics(t, x, l1, l2, m1, m2, g, K, B, qDes, tspan), tspan, initial_state);
+[t, state] = ode45(@(t, x) robot_dynamics(t, x, l1, l2, m1, m2, g, K, B, qDesF, tspan), tspan, initial_state);
 
 % Extract results
 qPos = state(:, 1:2); % Joint positions
 qVel = state(:, 3:4); % Joint velocities
 xAct = forward_kinematics(qPos(:, 1), qPos(:, 2), l1, l2);
-% xVel = [diff(xAct(:,1)), diff(xAct(:,2))];
-xVel = [quickdiff(t,xAct(:,1)), quickdiff(t,xAct(:,2))];
 xVelJ = zeros(size(xAct));
+
 for i=1:length(t)
     xVelJ(i,:) = jacobian_2link(qPos(i,1),qPos(i,2),1,1) * qVel(i,:)';
 end
 
 
-
 % Plot trajectory
 figure(1); hold on; grid on;
+plot(xDes(:, 1), xDes(:, 2), 'o', 'DisplayName', 'End Effector Desired');
+
 plot(xAct(:, 1), xAct(:, 2), '-', 'DisplayName', 'End Effector Actual');
-% plot(xDes(:, 1), xDes(:, 2), 'o', 'DisplayName', 'End Effector Desired');
 xlabel('X Position');
 ylabel('Y Position');
 title('Cartesian Space Trajectory Following');
 legend show;
 
-figure(2); hold on; grid on;
-quiver(xAct(:,1),xAct(:,2),xVel(:,1),xVel(:,2))
+% figure(2); hold on; grid on;
+% quiver(xAct(:,1),xAct(:,2),xVel(:,1),xVel(:,2))
 
+figure(3); hold on; grid on;
+plot(t,xVelJ(:,1))
+figure(4); hold on; grid on;
+plot(t,xVelJ(:,2))
 
 % Functions
 function dxdt = robot_dynamics(t, x, l1, l2, m1, m2, g, K, B, Q, tspan)
