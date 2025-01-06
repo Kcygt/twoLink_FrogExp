@@ -74,24 +74,26 @@ qPosFilt = stateFilt(:, 1:2); % Joint positions
 qVelFilt = stateFilt(:, 3:4); % Joint velocities
 
 
-xActNorm = forward_kinematics(qPosNorm(:, 1), qPosNorm(:, 2), l1, l2);
-xActFilt = forward_kinematics(qPosFilt(:, 1), qPosFilt(:, 2), l1, l2);
+xPosActNorm = forward_kinematics(qPosNorm(:, 1), qPosNorm(:, 2), l1, l2);
+xPosActFilt = forward_kinematics(qPosFilt(:, 1), qPosFilt(:, 2), l1, l2);
 
-xVelJNorm = zeros(size(xActNorm));
-xVelJFilt = zeros(size(xActFilt));
+xVelActJNorm = zeros(size(xPosActNorm));
+xVelActJFilt = zeros(size(xPosActFilt));
 
 for i=1:length(qPosNorm)
-    xVelJNorm(i,:) = jacobian_2link(qPosNorm(i,1),qPosNorm(i,2),1,1) * qVelNorm(i,:)';
-    xVelJFilt(i,:) = jacobian_2link(qPosFilt(i,1),qPosFilt(i,2),1,1) * qVelFilt(i,:)';
+    xVelActJNorm(i,:) = jacobian_2link(qPosNorm(i,1),qPosNorm(i,2),1,1) * qVelNorm(i,:)';
+    xVelActJFilt(i,:) = jacobian_2link(qPosFilt(i,1),qPosFilt(i,2),1,1) * qVelFilt(i,:)';
 
 end
 
 
 % Plot trajectory
 figure(1); hold on; grid on;
-plot(xDesNorm(:, 1), xDesNorm(:, 2), 'o', 'DisplayName', 'End Effector Desired');
-plot(xActNorm(:, 1), xActNorm(:, 2), '-', 'DisplayName', 'End Effector Actual');
-plot(xActFilt(:, 1), xActFilt(:, 2), '*', 'DisplayName', 'End Effector Actual');
+plot(xDesNorm(:, 1), xDesNorm(:, 2), 'o', 'DisplayName', 'End Effector Desired - NORMAL');
+% plot(xDesFilt(:, 1), xDesFilt(:, 2), '-', 'DisplayName', 'End Effector Desired - FILTERED');
+
+plot(xPosActNorm(:, 1), xPosActNorm(:, 2), '-', 'DisplayName', 'End Effector Actual');
+% plot(xPosActFilt(:, 1), xPosActFilt(:, 2), '*', 'DisplayName', 'End Effector Actual');
 
 xlabel('X Position');
 ylabel('Y Position');
@@ -102,12 +104,12 @@ legend show;
 % quiver(xAct(:,1),xAct(:,2),xVel(:,1),xVel(:,2))
 
 figure(3); hold on; grid on;
-plot(tNormOut,xVelJNorm(:,1))
-plot(tFiltOut,xVelJFilt(:,1))
+plot(tNormOut,xVelActJNorm(:,1))
+plot(tFiltOut,xVelActJFilt(:,1))
 
 figure(4); hold on; grid on;
-plot(tNormOut,xVelJNorm(:,2))
-plot(tFiltOut,xVelJFilt(:,2))
+plot(tNormOut,xVelActJNorm(:,2))
+plot(tFiltOut,xVelActJFilt(:,2))
 
 % Functions
 function dxdt = robot_dynamics(t, x, l1, l2, m1, m2, g, K, B, Q, tspan)
