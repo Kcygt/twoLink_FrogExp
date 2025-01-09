@@ -6,7 +6,7 @@ g = 0;
 tspan = [0 20]; % Total simulation time
 
 % Prefilter (Low-Pass)
-Wn = 20;
+Wn = 2;
 sigma = 1;
 num = Wn^2;
 den = [1 2*sigma*Wn Wn^2];
@@ -15,29 +15,29 @@ Prefilter = tf(num,den);
 % Desired Joint Trajectory
 q = [    -0.4240,   2.4189; % MAIN
 
-    -0.2936    2.3392 ;% second middle
+    % -0.2936    2.3392 ;% second middle
     % -0.2       2.26;
-    -0.1205    2.2065 ;% first middle
+    % -0.1205    2.2065 ;% first middle
     % -0.04      2.13;
-    0.0337     2.0601; % second middle
+    % 0.0337     2.0601; % second middle
     % 0.07       2;
     0.1296    1.9552; % MAIN
     % 0.1       1.92;
-    0.0821     1.8965 ;% second middle
+    % 0.0821     1.8965 ;% second middle
     % 0.055      1.84;
-    0.0316     1.7913 ;% first middle
+    % 0.0316     1.7913 ;% first middle
     % 0.015      1.72;
-    0.0050     1.6659 ;% second middle
+    % 0.0050     1.6659 ;% second middle
     % 0.002      1.62;
 
     0.0,       1.5708; % MAIN
-    -0.1002    1.6659;% second middle
-    -0.2522    1.7913 ;% first middle
-    -0.4078    1.8965;% second middle
+    % -0.1002    1.6659;% second middle
+    % -0.2522    1.7913 ;% first middle
+    % -0.4078    1.8965;% second middle
     -0.5139   1.9552; % MAIN
-    -0.5229    2.0601 ;%  second middle
-    -0.5153    2.2065 ;% first middle
-    -0.4749    2.3392; %  second middle
+    % -0.5229    2.0601 ;%  second middle
+    % -0.5153    2.2065 ;% first middle
+    % -0.4749    2.3392; %  second middle
     -0.4240,   2.4189 % MAIN
     ]; % Modify as needed
 
@@ -132,11 +132,12 @@ legend show
 % legend show
 
 figure(5); hold on; grid on;
-plot(tNormOut,xVelActJNorm(:, 1), '-', 'DisplayName', 'End Effector Actual Velocity 1 - Normal');
-plot(tFiltOut,xVelActJFilt(:, 1), '-', 'DisplayName', 'End Effector Actual Velocity 1 - Filtered');
-xlabel('X-Axis')
-ylabel('Y-Axis')
+plot(tNormOut,xVelActJNorm(:, 1:2), '-', 'DisplayName', 'End Effector Actual Velocity 1 - Normal');
+plot(tFiltOut,xVelActJFilt(:, 1:2), '-', 'DisplayName', 'End Effector Actual Velocity 1 - Filtered');
+xlabel('Time')
+ylabel('vel')
 legend show
+
 
 
 figure(6); hold on; grid on;
@@ -211,6 +212,13 @@ y = l1 * sin(q1) + l2 * sin(q1 + q2);
 P = [x, y];
 end
 
+function P = FK(q1, q2, l1, l2)
+L = [ 0 0 ; l1 0; l1 l2];
+C = [cos(q1) sin(q1);
+     cos(q1+q2) sin(q1+q2)];
+P = L * C;
+
+end
 
 function qDes = inverse_kinematics(x, y, l1, l2)
 r = sqrt(x^2 + y^2);
