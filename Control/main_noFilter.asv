@@ -5,29 +5,17 @@ g = 0;
 
 tspan = [0 20]; % Total simulation time
 
-% Prefilter (Low-Pass)
-Wn = 20;
-sigma = 1;
-num = Wn^2;
-den = [1 2*sigma*Wn Wn^2];
-Prefilter = tf(num,den);
 
 
 % Desired Joint Trajectory
-q = [    -0.4240,   2.4189;  
-    0.1296    1.9552;  
-    0.0,       1.5708;  
-    -0.5139   1.9552;  
-    -0.4240,   2.4189  
+qDes = [    -0.4240,   2.4189;  
+            0.1296    1.9552;  
+            0.0,       1.5708;  
+            -0.5139   1.9552;  
+            -0.4240,   2.4189  
     ]; 
 
-qDes = repelem(q, 400, 1);
-tFilt = linspace(0, tspan(2), length(qDes)); % Time vector
-qDesF = [lsim(Prefilter, qDes(:,1), tFilt, qDes(1,1)), lsim(Prefilter, qDes(:,2), tFilt, qDes(1,2))];
 
-step = 300;
-qDesF(1:step,:) = [ones(step,1) * -0.4240, ones(step,1)*2.4189];  % starts from [0,0]
-xDesFilt = forward_kinematics(qDesF(:, 1), qDesF(:, 2), l1, l2);
 
 % Controller gains
 K = 80; % Proportional gain
@@ -38,7 +26,7 @@ q0 = [-0.4240; 2.4189]; % Initial joint angles
 qd0 = [0; 0]; % Initial joint velocities
 initial_state = [q0; qd0];
 
-[tOut, state] = ode45(@(tFilt, x) robot_dynamics(tFilt, x, l1, l2, m1, m2, g, K, B, qDesF, tspan), tspan, initial_state);
+[tOut, state] = ode45(@(t, x) robot_dynamics(t, x, l1, l2, m1, m2, g, K, B, qDes, tspan), tspan, initial_state);
 qAct = state(:, 1:2); % Joint positions
 qdAct = state(:, 3:4); % Joint velocities
 
@@ -89,17 +77,20 @@ function dxdt = robot_dynamics(t, x, l1, l2, m1, m2, g, K, B, Q, tspan)
 q = x(1:2);
 qp = x(3:4);
 
+t1 = 4; t2 = 8; t3 = 12; t4 = 16;
 
-% Determine current waypoint
-% num_waypoints = size(Q, 1);
-% val = tspan(2) / num_waypoints;
-% waypoint_index = min(floor(t / val) + 1, num_waypoints);
-% q_des = Q(waypoint_index, :)';
-% 
-% % Desired velocity
-% qd_des = [0; 0];
-% 
-% % Errors
+if t<t1
+    q_des = Q(1,:);
+elseif t>t1  || t<t2
+    q_des = Q(2,:);
+elseif t>t2  || t<t3
+
+
+
+% Desired velocity
+qp_des = [0; 0];
+
+% Errors
 e = q - q_des;
 eDot = qp - qp_des;
 
