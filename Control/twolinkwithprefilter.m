@@ -6,8 +6,8 @@
  % x0(1:2)=[.2;-.1];
  % [t,y]=ode113(@(t,x) twolinkwithprefilter(t,x,1),[0 7],x0);
  % figure(1);plot(t,y(:,1:4));shg;  figure(2);plot(t,y(:,5:8));shg
-
- 
+ % 
+ % 
 % >> [t,y]=ode45(@(t,x) twolinkwithprefilter(t,x,1),[0 17],x0);
 
 
@@ -24,15 +24,15 @@ A=[zeros([2 2]) eye(2);-eye(2)*wn^2 -eye(2)*2*zeta*wn]; % note the wn^2 !!
 %% Set up a two link arm
 q=x(5:6);
 qd=x(7:8);
-q1p=x(7);q2p=x(8);
-q1=x(5);q2=x(6);
+q1p=x(7); q2p=x(8);
+q1=x(5); q2=x(6);
 
-bj=.01; % energy dissipation term
-kj=.3; % controller gain
-L_1=1;
-L_2=1;
-m_1=.5;
-m_2=.5;
+bj=.1; % energy dissipation term
+kj=3; % controller gain
+L_1 = 1;
+L_2 = 1;
+m_1 = 1;
+m_2 = 1;
 % derived constants
 ka=L_2^2*m_2;
 kb=(L_1*L_2*m_2);
@@ -42,7 +42,7 @@ M=[ka+2*kb*cos(q2)+kc  ka+kb*cos(q2);
    ka+kb*cos(q2) ka];
 V=ka*sin(q2)*([0 -1;1 0]*[q1p^2;q2p^2]+[-2*q1p*q2p;0]);
 
-Numerator=V+[bj 0;0 bj]*qd + [kj 0;0 kj]*(q-x(1:2));
+Numerator=V+[-bj 0;0 -bj]*qd + [kj 0;0 kj]*(q-x(1:2));
 %Numerator=V;
 qdd=M\Numerator;
 

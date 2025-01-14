@@ -1,44 +1,11 @@
-% Parameters
-l1 = 1; l2 = 1; % Link lengths
-m1 = 1; m2 = 1; % Masses
-g = 0;
-
 tspan = [0 20]; % Total simulation time
-
-% Prefilter (Low-Pass)
-Wn = 20;
-sigma = 1;
-num = Wn^2;
-den = [1 2*sigma*Wn Wn^2];
-Prefilter = tf(num,den);
-
-
-% Desired Joint Trajectory
-q = [    -0.4240,   2.4189;  
-    0.1296    1.9552;  
-    0.0,       1.5708;  
-    -0.5139   1.9552;  
-    -0.4240,   2.4189  
-    ]; 
-
-qDes = repelem(q, 400, 1);
-tFilt = linspace(0, tspan(2), length(qDes)); % Time vector
-qDesF = [lsim(Prefilter, qDes(:,1), tFilt, qDes(1,1)), lsim(Prefilter, qDes(:,2), tFilt, qDes(1,2))];
-
-step = 300;
-qDesF(1:step,:) = [ones(step,1) * -0.4240, ones(step,1)*2.4189];  % starts from [0,0]
-xDesFilt = forward_kinematics(qDesF(:, 1), qDesF(:, 2), l1, l2);
-
-% Controller gains
-K = 80; % Proportional gain
-B = 40; % Derivative gain
 
 % Initial joint angles and velocities
 q0 = [-0.4240; 2.4189]; % Initial joint angles
 qd0 = [0; 0]; % Initial joint velocities
-initial_state = [q0; qd0];
+initial_state = [zeros(4,1);q0; qd0];
 
-[tOut, state] = ode45(@(tFilt, x) robot_dynamics(tFilt, x, l1, l2, m1, m2, g, K, B, qDesF, tspan), tspan, initial_state);
+[tOut, state] = ode45(@(t, x) robot_dynamics(t, x), tspan, initial_state);
 qAct = state(:, 1:2); % Joint positions
 qdAct = state(:, 3:4); % Joint velocities
 
@@ -84,23 +51,36 @@ hold off;
 
 
 % Functions
-function dxdt = robot_dynamics(t, x, l1, l2, m1, m2, g, K, B, Q, tspan)
+function dxdt = robot_dynamics(t, x)
+% Desired Joint Trajectory
+qDes = [ -0.4240,   2.4189;  
+          0.1296    1.9552;  
+          0.0,      1.5708;  
+         -0.5139    1.9552;  
+         -0.4240,   2.4189  
+        ]; 
+
 % Unpack state variables
 q = x(1:2);
 qp = x(3:4);
 
+% Parameters
+l1 = 1; l2 = 1; % Link lengths
+m1 = 1; m2 = 1; % Masses
+g = 0;
+K = 80; % Proportional gain
+B = 40; % Derivative gain
 
-% Determine current waypoint
-num_waypoints = size(Q, 1);
-val = tspan(2) / num_waypoints;
-waypoint_index = min(floor(t / val) + 1, num_waypoints);
-q_des = Q(waypoint_index, :)';
+% Prefilter (Low-Pass)
+sigma=1;
+wn = 20;
+A=[zeros([2 2]) eye(2);-eye(2)*wn^2 -eye(2)*2*sigma*wn]; % note the wn^2 !!
 
 % Desired velocity
 qp_des = [0; 0];
 
 % Errors
-e = q - q_des;
+e = q - Q';
 eDot = qp - qp_des;
 
 % Dynamics
@@ -113,7 +93,19 @@ Torque = -K * e - B * eDot;
 
 % State derivatives
 qpp = M \ (Torque - C * qp - G);
-dxdt = [qp; qpp];
+
+if t<.4;
+    dotx=[0;0;0;0];
+elseif (t<5)
+    Uinp=[0;0;1;1.5]*wn^2; 
+    dotx=A*x(1:4)+Uinp;
+else
+    Uinp=[0;0;0.2;0]*wn^2;
+    dotx=A*x(1:4)+Uinp;
+end
+
+
+dxdt=[dotx;qp;qpp];
 end
 
 

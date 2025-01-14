@@ -22,7 +22,7 @@ q0 = [-0.4240; 2.4189]; % Initial joint angles
 qd0 = [0; 0]; % Initial joint velocities
 initial_state = [q0; qd0];
 
-[tOut, state] = ode45(@(t, x) robot_dynamics(t, x, l1, l2, m1, m2, g, K, B, qDes, tspan), tspan, initial_state);
+[tOut, state] = ode45(@(t, x) robot_dynamics(t, x, l1, l2, m1, m2, g, K, B, qDes), tspan, initial_state);
 qAct = state(:, 1:2); % Joint positions
 qdAct = state(:, 3:4); % Joint velocities
 
@@ -68,13 +68,12 @@ hold off;
 
 
 % Functions
-function dxdt = robot_dynamics(t, x, l1, l2, m1, m2, g, K, B, Q, tspan)
+function dxdt = robot_dynamics(t, x, l1, l2, m1, m2, g, K, B, Q)
 % Unpack state variables
 q = x(1:2);
 qp = x(3:4);
 
 t1 = 4; t2 = 8; t3 = 12; t4 = 16;
-
    
 if t<t1
     q_des = Q(1,:)';
@@ -87,7 +86,7 @@ elseif t>t3  && t<t4
 else
     q_des = Q(5,:)';
 end
-q_des
+
 % Desired velocity
 qp_des = [0; 0];
 
