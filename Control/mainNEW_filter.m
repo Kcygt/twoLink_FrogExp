@@ -1,13 +1,14 @@
 tspan = [0 20]; % Total simulation time
 
+
 % Initial joint angles and velocities
 q0 = [-0.4240; 2.4189]; % Initial joint angles
 qd0 = [0; 0]; % Initial joint velocities
-initial_state = [zeros(4,1);q0; qd0];
+initial_state = [q0; qd0;zeros(4,1)];
 
 [tOut, state] = ode45(@(t, x) robot_dynamics(t, x), tspan, initial_state);
-qAct = state(:, 1:2); % Joint positions
-qdAct = state(:, 3:4); % Joint velocities
+qAct = state(:, 5:6); % Joint positions
+qdAct = state(:, 7:8); % Joint velocities
 
 xAct= forward_kinematics(qAct(:, 1), qAct(:, 2), 1, 1);
 
@@ -43,15 +44,39 @@ for t = 1:num_timesteps
                     'YData', [0, P(2, 2), P(3, 2)]);
     
     % Pause for animation effect
-    pause(1e-5);
+    pause(1e-3);
 end
 
 hold off;
 
+figure(2); hold on; grid on;
+plot(tOut,qAct(:,1))
+xlabel('Time(s)')
+ylabel('Position(rad)')
+title('Joint 1 Position')
 
-
+figure(3); hold on; grid on;
+plot(qdAct(:,1))
+xlabel('Time(s)')
+ylabel('Velcoity(rad/s)')
+title('Joint 1 Velocity')
 % Functions
 function dxdt = robot_dynamics(t, x)
+
+% Parameters
+l1 = 1; l2 = 1; % Link lengths
+m1 = 1; m2 = 1; % Masses
+g = 0;
+
+% Controller gains
+K = 80; % Proportional gain
+B = 40; % Derivative gain
+
+% Prefilter (Low-Pass)
+sigma=1;
+wn = 20;
+A=[zeros([2 2]) eye(2);-eye(2)*wn^2 -eye(2)*2*sigma*wn]; % note the wn^2 !!
+
 % Desired Joint Trajectory
 qDes = [ -0.4240,   2.4189;  
           0.1296    1.9552;  
@@ -61,22 +86,39 @@ qDes = [ -0.4240,   2.4189;
         ]; 
 
 % Unpack state variables
-q = x(1:2);
-qp = x(3:4);
+q = x(5:6);
+qp = x(7:8);
 
-% Parameters
-l1 = 1; l2 = 1; % Link lengths
-m1 = 1; m2 = 1; % Masses
-g = 0;
-K = 80; % Proportional gain
-B = 40; % Derivative gain
+t1 = 4; t2 = 8; t3 = 12; t4 = 16;
+   
+if t<t1
+    q_des = qDes(1,:)';
+    dotx = A*x(1:4)+x(5:8);
 
+
+elseif t>t1  && t<t2
+    q_des = qDes(2,:)';
+    dotx=[q_des;0;0];
+
+elseif t>t2  && t<t3
+    q_des = qDes(3,:)';
+    dotx=[q_des;0;0];
+
+elseif t>t3  && t<t4
+    q_des = qDes(4,:)';
+    dotx=[q_des;0;0];
+
+else
+    q_des = qDes(5,:)';
+    dotx=[q_des;0;0];
+
+end
 
 % Desired velocity
 qp_des = [0; 0];
 
 % Errors
-e = q - qDes(1,:)';
+e = q - q_des;
 eDot = qp - qp_des;
 
 % Dynamics
@@ -89,19 +131,9 @@ Torque = -K * e - B * eDot;
 
 % State derivatives
 qpp = M \ (Torque - C * qp - G);
-
-if t<.4;
-    dotx=[0;0;0;0];
-elseif (t<5)
-    Uinp=[0;0;1;1.5]*wn^2; 
-    dotx=A*x(1:4)+Uinp;
-else
-    Uinp=[0;0;0.2;0]*wn^2;
-    dotx=A*x(1:4)+Uinp;
-end
+dxdt = [dotx;qp; qpp];
 
 
-dxdt=[dotx;qp;qpp];
 end
 
 
