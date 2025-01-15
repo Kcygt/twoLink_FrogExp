@@ -32,8 +32,8 @@ qd=x(7:8);
 q1p=x(7); q2p=x(8);
 q1=x(5); q2=x(6);
 
-bj=10; % energy dissipation term
-kj=20; % controller gain
+bj=50; % energy dissipation term
+kj=100; % controller gain
 L_1 = 1;
 L_2 = 1;
 m_1 = 1;
