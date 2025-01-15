@@ -1,0 +1,91 @@
+% Optimization of two-link robot arm tracking
+clear; clc;
+
+% Define constants and desired trajectory
+[fX, fY, cartesianX, cartesianY] = defineSquare(0.9, 0.9, 1);
+qDes = inverse_kinematics(cartesianX, cartesianY, 1, 1)';  % Desired joint angles
+
+% Optimization setup
+initialParams = [5, 10, 15, 20, 30, 2, 50, 100]; % Initial guess for [time, wn, bj, kj]
+lb = [1, 2, 3, 4, 5, 0.1, 1, 10];               % Lower bounds
+ub = [10, 20, 25, 30, 40, 10, 500, 1000];       % Upper bounds
+
+% Use an anonymous function to pass qDes to the objective function
+objectiveFunc = @(params) objectiveFunction(params, qDes);
+
+% Run optimization
+options = optimset('Display', 'iter', 'TolFun', 1e-6, 'MaxIter', 100);
+optimalParams = fmincon(objectiveFunc, initialParams, [], [], [], [], lb, ub, [], options);
+
+% Simulate with optimal parameters and plot results
+[t, y] = ode113(@(t, x) myTwolinkwithprefilter(t, x, optimalParams(6), optimalParams(1:5), qDes, optimalParams(7), optimalParams(8)), [0 30], zeros(8, 1));
+xAct = forward_kinematics(y(:, 5), y(:, 6), 1, 1);
+xDes = forward_kinematics(qDes(:, 1), qDes(:, 2), 1, 1);
+
+figure;
+plot(xAct(:, 1), xAct(:, 2), '-');
+hold on;
+plot(xDes(:, 1), xDes(:, 2), 'o-');
+legend('Actual', 'Desired');
+title('Optimized Trajectory Tracking');
+
+% Objective function
+function error = objectiveFunction(params, qDes)
+    time = [params(1), params(2), params(3), params(4), params(5)];
+    wn = params(6);
+    bj = params(7);
+    kj = params(8);
+    
+    % Initial conditions
+    x0 = zeros(8, 1);
+    x0(1:2) = [qDes(1, 1); qDes(1, 2)];
+    
+    % Simulate the system
+    [t, y] = ode113(@(t, x) myTwolinkwithprefilter(t, x, wn, time, qDes, bj, kj), [0 30], x0);
+    
+    % Compute the tracking error
+    xAct = forward_kinematics(y(:, 5), y(:, 6), 1, 1);
+    xDes = forward_kinematics(qDes(:, 1), qDes(:, 2), 1, 1);
+    
+    % Calculate the error metric (e.g., sum of squared errors)
+    error = sum((xAct(:, 1) - xDes(:, 1)).^2 + (xAct(:, 2) - xDes(:, 2)).^2);
+end
+
+% myTwolinkwithprefilter function
+function dxdt = myTwolinkwithprefilter(t, x, wn, time, qDes, bj, kj)
+    zeta = 1.0;
+    A = [zeros([2 2]) eye(2); -eye(2)*wn^2 -eye(2)*2*zeta*wn];
+    B = [0 0; 0 0; wn^2 0; 0 wn^2];
+    
+    q = x(5:6);
+    qd = x(7:8);
+    q1p = x(7); q2p = x(8);
+    q1 = x(5); q2 = x(6);
+    
+    % Robot constants
+    L_1 = 1; L_2 = 1; m_1 = 1; m_2 = 1;
+    ka = L_2^2 * m_2;
+    kb = L_1 * L_2 * m_2;
+    kc = L_1^2 * (m_1 + m_2);
+    
+    M = [ka + 2*kb*cos(q2) + kc, ka + kb*cos(q2);
+         ka + kb*cos(q2), ka];
+    V = ka*sin(q2)*([0 -1; 1 0] * [q1p^2; q2p^2] + [-2*q1p*q2p; 0]);
+    
+    Numerator = V + [-bj 0; 0 -bj]*qd + [-kj 0; 0 -kj]*(q - x(1:2));
+    qdd = M\Numerator;
+    
+    if t < time(1)
+        dotx = A*x(1:4) + B*qDes(1, :)';
+    elseif t < time(2)
+        dotx = A*x(1:4) + B*qDes(2, :)';
+    elseif t < time(3)
+        dotx = A*x(1:4) + B*qDes(3, :)';
+    elseif t < time(4)
+        dotx = A*x(1:4) + B*qDes(4, :)';
+    else
+        dotx = A*x(1:4) + B*qDes(5, :)';
+    end
+    
+    dxdt = [dotx; qd; qdd];
+end
