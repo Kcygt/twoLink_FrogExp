@@ -10,6 +10,11 @@ timee = [ 2 4 6 8 10];
 timeLow = [1, 2.1, 3.1, 4.1, 5.1];
 timeUp  = [2,   3,   4,   5,   6];
 initialParams = [timee,      3,   10,   20  ]; % Initial guess for [time, wn, bj, kj]
+initialParams=[  1.1155    2.6454    3.9002    4.8978    5.8978    7.0857    9.9857   41.2005];
+initialParams=[  1.1192    2.6448    3.9014    4.8941    5.8941    7.3920   17.4518   42.4887];
+initialParams=[  1.3973    2.5916    3.6164    4.6204    5.6204    7.3605   17.4846   43.5925];
+
+
 lb = [timeLow,                0.1,    1,    1  ];               % Lower bounds
 ub = [timeUp,                 10,   40,  50 ];       % Upper bounds
 
@@ -46,28 +51,36 @@ function error = objectiveFunction(params, qDes)
     % Simulate the system
     [t, y] = ode113(@(t, x) myTwolinkwithprefilter(t, x, wn, time, qDes, bj, kj), [0 30], x0);
 
-    index = zeros(length(time),1);
-    j = 1;
-    for i = 1:length(t)
-
-        if abs(t(i) - time(j)) < 0.5
-            index(j) = i;
-            j = j + 1;
-            if j == 6 
-                break
-            end
-        end
-        i = i+1;
-
-    end
-    index(end) = length(t)-1;
+    % index = zeros(length(time),1);
+    % j = 1;
+    % for i = 1:length(t)
+    % 
+    %     if abs(t(i) - time(j)) < 0.5
+    %         index(j) = i;
+    %         j = j + 1;
+    %         if j == 6 
+    %             break
+    %         end
+    %     end
+    %     i = i+1;
+    % 
+    % end
+    % index(end) = length(t)-1;
     
     % Compute the tracking error
-    xAct = forward_kinematics(y(index, 5), y(index, 6), 1, 1);
-    xDes = forward_kinematics(qDes(:, 1), qDes(:, 2), 1, 1);
+    % xAct = forward_kinematics(y(:, 5), y(:, 6), 1, 1);
+    % xDes = forward_kinematics(qDes(:, 1), qDes(:, 2), 1, 1);
     
     % Calculate the error metric (e.g., sum of squared errors)
-    error = abs(sum((xAct(:, 1) - xDes(:, 1)).^2 + (xAct(:, 2) - xDes(:, 2)).^2));
+    % error = abs(sum((y(:, 1) - qDes(1, 1)).^2 + (xAct(:, 2) - xDes(:, 2)).^2));
+
+    distto1=sum((y(:,5:6)-qDes(1,:)).^2,2);
+    distto2=sum((y(:,5:6)-qDes(2,:)).^2,2);
+    distto3=sum((y(:,5:6)-qDes(3,:)).^2,2);
+    distto4=sum((y(400:end,5:6)-qDes(4,:)).^2,2);
+    error=min(distto1)+min(distto2)+min(distto3)+min(distto4);
+    error=min(distto4);
+
 end
 
 % myTwolinkwithprefilter function

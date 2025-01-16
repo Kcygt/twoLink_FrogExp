@@ -7,11 +7,9 @@ qDes = inverse_kinematics(cartesianX, cartesianY, 1, 1)';  % Desired joint angle
 gain = 3.0;
 % Optimization setup
 timee = [ 2 4 6 8 10];
-timeLow = [1, 2.1, 3.1, 4.1, 5.1];
-timeUp  = [2,   3,   4,   5,   6];
-initialParams = [timee,      3,   10,   20  ]; % Initial guess for [time, wn, bj, kj]
-lb = [timeLow,                0.1,    1,    1  ];               % Lower bounds
-ub = [timeUp,                 10,   40,  50 ];       % Upper bounds
+initialParams = [1.1*gain, 2.2*gain,3.2*gain, 4.2*gain, 5.2*gain,      3,   10,   20  ]; % Initial guess for [time, wn, bj, kj]
+lb = [1*gain, 2.1*gain, 3.1*gain, 4.1*gain, 5.1*gain,                0.1,    1,    1  ];               % Lower bounds
+ub = [2*gain,   3*gain,   4*gain,   5*gain,   6*gain,                 10,   60,  100 ];       % Upper bounds
 
 % Use an anonymous function to pass qDes to the objective function
 objectiveFunc = @(params) objectiveFunction(params, qDes);
@@ -35,6 +33,7 @@ title('Optimized Trajectory Tracking');
 % Objective function
 function error = objectiveFunction(params, qDes)
     time = [params(1), params(2), params(3), params(4), params(5)];
+    time
     wn = params(6);
     bj = params(7);
     kj = params(8);
