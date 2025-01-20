@@ -7,14 +7,14 @@ qDes = inverse_kinematics(cartesianX, cartesianY, 1, 1)';  % Desired joint angle
 gain = 3.0;
 % Optimization setup
 timee = [ 2 4 6 8 10];
-timeLow = [1, 2.1, 3.1, 4.1, 5.1] * 0.5;
-timeUp  = [2,   3,   4,   5,   6]* 0.5;
+timeLow = [1, 2.1, 3.1, 4.1, 5.1] *;
+timeUp  = [2,   3,   4,   5,   6];
 initialParams = [timee,      3,   10,   20  ]; % Initial guess for [time, wn, bj, kj]
 initialParams=[  1.1155    2.6454    3.9002    4.8978    5.8978    7.0857    9.9857   41.2005];
 initialParams=[  1.1192    2.6448    3.9014    4.8941    5.8941    7.3920   17.4518   42.4887];
 initialParams=[  1.3973    2.5916    3.6164    4.6204    5.6204    7.3605   17.4846   43.5925];
 initialParams=[    1.3973    2.5916    3.6164    4.6204    5.6204    7.3540   17.4931   43.5867];
-initialParams=[    0.5012    1.3012    1.8012    2.3012    2.8012    9.7007   12.9651   41.2718];
+
 
 lb = [timeLow,                0.1,    1,    1  ];               % Lower bounds
 ub = [timeUp,                 10,   40,  50 ];       % Upper bounds
