@@ -5,7 +5,7 @@ x0=zeros(8,1);
 x0(1:2)=[qDes(1,1);qDes(1,2)];
 
 wn = 4.9914;
-            
+          23.6390   47.2412
 
 [t,y]=ode113(@(t,x) myTwolinkwithprefilter(t,x,wn,time, qDes),[0 time(end)],x0);
 % figure(1);plot(t,y(:,1:4));shg;  figure(2);plot(t,y(:,5:8));shg
@@ -24,8 +24,8 @@ qd=x(7:8);
 q1p=x(7); q2p=x(8);
 q1=x(5); q2=x(6);
 
-bj= 23.6390; % energy dissipation term
-kj=47.2412; % controller gain
+bj=10; % energy dissipation term
+kj=30; % controller gain
 L_1 = 1;
 L_2 = 1;
 m_1 = 1;

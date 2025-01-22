@@ -1,41 +1,42 @@
 % Optimization of two-link robot arm tracking
 clear; clc;
 
-% Define constants and desired trajectory
+% Define desired trajectory
 [fX, fY, cartesianX, cartesianY] = defineSquare(0.9, 0.9, 1);
 qDes = inverse_kinematics(cartesianX, cartesianY, 1, 1)';  % Desired joint angles
 
 % Optimization setup
-timee = [ 2 4 6 8 10];
-timeLow = [0, 2.1, 3.1, 4.1, 5.1] ;
-timeUp  = [2,   3,   4,   5,   6] ;
-initialParams = [timee,      3,   10,   20  ]; % Initial guess for [time, wn, bj, kj]
-% initialParams=[  1.3973    2.5916    3.6164    4.6204    5.6204    7.3605   17.4846   43.5925];
+initParams = [3, 6, 9, 12, 15,     1   20,   45]; % Initial guess for [time, wn, bj, kj]
+% initialParams =   [  1.9142    3.3451    4.0022    6.0404    8.0008    4.8515   10.4579   47.2359];
 
-lb = [timeLow, 0.1,    1,  1  ];   % Lower bounds
-ub = [timeUp,  10,    40,  100 ];     % Upper bounds
+[init_T, init_Y] = ode45(@(t, x) myTwolinkwithprefilter(t, x, initParams(6), initParams(1:5), qDes, initParams(7), initParams(8)), [0 initParams(5)], zeros(8, 1));
 
-% Use an anonymous function to pass qDes to the objective function
+% Lower and upper boundaries 
+tStep = 1;
+lb = [0,     tStep,   2*tStep, 3*tStep, 4*tStep,   0.1,    1,  10  ];   % Lower bounds
+ub = [tStep, 2*tStep, 3*tStep, 4*tStep, 5*tStep,    5,   50,  100 ];     % Upper bounds
+
+% Objective Function
 objectiveFunc = @(params) objectiveFunction(params, qDes);
 
 % Run optimization
-options = optimset('Display', 'iter', 'TolFun', 1e-6, 'MaxIter', 200);
-optimalParams = fmincon(objectiveFunc, initialParams, [], [], [], [], lb, ub, [], options);
+options = optimset('Display', 'iter', 'TolFun', 1e-7, 'MaxIter', 200);
+optimalParams = fmincon(objectiveFunc, initParams, [], [], [], [], lb, ub, [], options);
 
 % Simulate with optimal parameters and plot results
-[t, y] = ode45(@(t, x) myTwolinkwithprefilter(t, x, optimalParams(6), optimalParams(1:5), qDes, optimalParams(7), optimalParams(8)), [0 6], zeros(8, 1));
+[t, y] = ode45(@(t, x) myTwolinkwithprefilter(t, x, optimalParams(6), optimalParams(1:5), qDes, optimalParams(7), optimalParams(8)), [0 optimalParams(5)], zeros(8, 1));
 xAct = forward_kinematics(y(:, 5), y(:, 6), 1, 1);
 xDes = forward_kinematics(qDes(:, 1), qDes(:, 2), 1, 1);
+xInit = forward_kinematics(init_Y(:, 5), init_Y(:, 6), 1, 1);
 
-figure(1);
+figure(1); hold on;
+plot(xInit(:, 1), xInit(:, 2), '-');
 plot(xAct(:, 1), xAct(:, 2), '-');
-hold on;
 plot(xDes(:, 1), xDes(:, 2), 'o-');
-legend('Actual', 'Desired');
+legend('Initial','Optimised', 'Desired');
 title('Optimized Trajectory Tracking');
 
-figure(2); hold on; grid on;
-plot(t,xAct(:,1))
+
 % Objective function
 function error = objectiveFunction(params, qDes)
     time = [params(1), params(2), params(3), params(4), params(5)];
@@ -49,26 +50,20 @@ function error = objectiveFunction(params, qDes)
     x0(1:2) = [qDes(1, 1); qDes(1, 2)];
     
     % Simulate the system
-    [t, y] = ode45(@(t, x) myTwolinkwithprefilter(t, x, wn, time, qDes, bj, kj), [0 6], x0);
+    [t, y] = ode45(@(t, x) myTwolinkwithprefilter(t, x, wn, time, qDes, bj, kj), [0 time(end)], x0);
 
-   
-    % Calculate the error metric (e.g., sum of squared errors)
-    % error = abs(sum((y(:, 1) - qDes(1, 1)).^2 + (xAct(:, 2) - xDes(:, 2)).^2));
-    w1 = 100;
+    % weights
+    w1 = 400;
     w2 = 1;
-    % error = 0;
-    % for i = 1:length(time)
-    %     dist = w1 * sum((y(:, 5:6) - qDes(i, :)).^2, 2) + w2 * abs(time(i) - t(:, 1));
-    %     error = error + sum(dist);
-    % end
- 
-    distto1 = w1*sum((y(:,5:6)-qDes(1,:)).^2,2) + w2*sum(abs(time(1) - t)) ; 
-    distto2 = w1*sum((y(:,5:6)-qDes(2,:)).^2,2) + w2*sum(abs(time(2) - t));
-    distto3 = w1*sum((y(:,5:6)-qDes(3,:)).^2,2) + w2*sum(abs(time(3) - t));
-    distto4 = w1*sum((y(:,5:6)-qDes(4,:)).^2,2) + w2*sum(abs(time(4) - t));
-    distto5 = w1*sum((y(:,5:6)-qDes(5,:)).^2,2) + w2*sum(abs(time(5) - t));
-    error=min(distto1) + min(distto2) + min(distto3) + min(distto4) + min(distto5);
-    % error = min(distto3);
+
+    % Calculate the error metric (e.g., sum of squared errors)
+    distto1 = w1 * sum((y(:,5:6) - qDes(1,:)).^2,2) + w2 * sum(abs(time(1) - t)); 
+    distto2 = w1 * sum((y(:,5:6) - qDes(2,:)).^2,2) + w2 * sum(abs(time(2) - t));
+    distto3 = w1 * sum((y(:,5:6) - qDes(3,:)).^2,2) + w2 * sum(abs(time(3) - t));
+    distto4 = w1 * sum((y(:,5:6) - qDes(4,:)).^2,2) + w2 * sum(abs(time(4) - t));
+    distto5 = w1 * sum((y(:,5:6) - qDes(5,:)).^2,2) + w2 * sum(abs(time(5) - t));
+    % error   = min(distto1) + min(distto2) + min(distto3) + min(distto4) + min(distto5);
+    error = min(distto3);
 end
 
 % myTwolinkwithprefilter function
