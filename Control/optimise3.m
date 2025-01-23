@@ -5,13 +5,13 @@ clear; clc;
 qDes = [ -0.4986    2.5681;
           0.5371    1.5108 ];
 % Optimization setup
-initParams = [2 4  .5 20 45]; % Initial guess for [time, wn, bj, kj]
+initParams = [2 4  1 20 45]; % Initial guess for [time, wn, bj, kj]
 
 [init_T, init_Y] = ode45(@(t, x) myTwolinkwithprefilter(t, x, initParams(3), initParams(1:2), qDes, initParams(4), initParams(5)), [0 initParams(2)], zeros(8, 1));
 
 % Lower and upper boundaries 
-lb = [0.7 1.5  1  1    10  ];   % Lower bounds
-ub = [5 5  10   100  100 ];  % Upper bounds
+lb = [0.7 1.5  1  1      2  ];   % Lower bounds
+ub = [5 5      40   100  200 ];  % Upper bounds
 
 % Objective Function
 objectiveFunc = @(params) objectiveFunction(params, qDes);
@@ -25,11 +25,12 @@ optimalParams = fmincon(objectiveFunc, initParams, [], [], [], [], lb, ub, [], o
 xAct = forward_kinematics(y(:, 5), y(:, 6), 1, 1);
 xDes = forward_kinematics(qDes(:, 1), qDes(:, 2), 1, 1);
 xInit = forward_kinematics(init_Y(:, 5), init_Y(:, 6), 1, 1);
-
+% xMID = forward_kinematics( -0.2191,  2.4039,  1, 1);
 figure(1); hold on;
 plot(xInit(:, 1), xInit(:, 2), '-');
-plot(xAct(:, 1), xAct(:, 2), '*');
+plot(xAct(:, 1), xAct(:, 2), '-');
 plot(xDes(:, 1), xDes(:, 2), 'o-');
+% plot(xMID(:, 1), xMID(:, 2), '*-');
 legend('Initial','Optimised', 'Desired');
 title('Optimized Trajectory Tracking');
 disp(['Optimized Parameters :', num2str(optimalParams)])
@@ -52,10 +53,12 @@ function error = objectiveFunction(params, qDes)
     % weights
     w1 = 2000;
     w2 = 1;
+    % qMid = inverse_kinematics(0.4, 0.6, 1, 1);
     % Calculate the error metric (e.g., sum of squared errors)
     distto1 = w1 * sum((y(:, 5:6) - qDes(1,:)).^2,2) + w2 * sum(abs(time(1) - t)); 
     distto2 = w1 * sum((y(:, 5:6) - qDes(2,:)).^2,2) + w2 * sum(abs(time(2) - t)); 
-
+    % distto3 = 100 * sum((y(:, 5:6) - qMid').^2,2);
+    % error   = min(distto1) + min(distto2)+ min(distto3);
     error   = min(distto1) + min(distto2);
 end
 
