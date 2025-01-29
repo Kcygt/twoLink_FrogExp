@@ -2,27 +2,25 @@
 clear; clc;
 
 % Define desired trajectory
-qDes = [ -0.4986    2.5681;
-          0.5371    1.5108 ];
+qDes = [ 0.5371    1.5108 ];
 
 % Optimization setup
-initParams = [4 8  2 20 45]; % Initial guess for [time, wn, bj, kj]
+initParams = [20  1 20 45]; % Initial guess for [time, wn, bj, kj]
 
-[init_T, init_Y] = ode45(@(t, x) myTwolinkwithprefilter(t, x, initParams(3), initParams(1:2), qDes, initParams(4), initParams(5)), [0 initParams(2)], zeros(8, 1));
+[init_T, init_Y] = ode45(@(t, x) myTwolinkwithprefilter(t, x, initParams(2), initParams(1), qDes, initParams(3), initParams(4)), [0 initParams(1)], zeros(8, 1));
 
 % Lower and upper boundaries 
-lb = [1 2  1  1      2  ];   % Lower bounds
-ub = [5 10  40   100  200 ];  % Upper bounds
+lb = [0   1.5   1    2  ];   % Lower bounds
+ub = [15  50  200  500 ];  % Upper bounds
 
 % Objective Function
-objectiveFunc = @(params) objectiveFunction(params, qDes);
 
 % Run optimization
 options = optimset('Display', 'iter', 'TolFun', 1e-6, 'MaxIter', 200);
-optimalParams = fmincon(objectiveFunc, initParams, [], [], [], [], lb, ub, [], options);
+optimalParams = fmincon(@(params) objectiveFunction(params, qDes), initParams, [], [], [], [], lb, ub, [], options);
 
 % Simulate with optimal parameters and plot results
-[t, y] = ode45(@(t, x) myTwolinkwithprefilter(t, x, optimalParams(3), optimalParams(1:2), qDes, optimalParams(4), optimalParams(5)), [0 optimalParams(2)], zeros(8, 1));
+[t, y] = ode45(@(t, x) myTwolinkwithprefilter(t, x, optimalParams(2), optimalParams(1), qDes, optimalParams(3), optimalParams(4)), [0 optimalParams(1)], zeros(8, 1));
 xAct = forward_kinematics(y(:, 5), y(:, 6), 1, 1);
 xDes = forward_kinematics(qDes(:, 1), qDes(:, 2), 1, 1);
 xInit = forward_kinematics(init_Y(:, 5), init_Y(:, 6), 1, 1);
@@ -39,38 +37,36 @@ disp(['Optimized Parameters :', num2str(optimalParams)])
 
 % Objective function
 function error = objectiveFunction(params, qDes)
-    time = [params(1) params(2)];
+    time =params(1);
     
-    wn = params(3);
-    bj = params(4);
-    kj = params(5);
+    wn = params(2);
+    bj = params(3);
+    kj = params(4);
    
     % Initial conditions
     x0 = zeros(8, 1);
     x0(1:2) = [qDes(1, 1); qDes(1, 2)];
     
     % Simulate the system
-    [t, y] = ode45(@(t, x) myTwolinkwithprefilter(t, x, wn, time, qDes, bj, kj), [0 time(end)], x0);
-    time(end)
-    % weights
-    w1 = 3;
+    [t, y] = ode45(@(t, x) myTwolinkwithprefilter(t, x, wn, time, qDes, bj, kj), [0 time], x0);
+
+    % weights, could be done as a vector of weights
+    w1 = 0;
     w2 = 0;
-    w3 = 10;
+    w3 = 0;
+    % w= [0.5, 1 , 5]; [qd_wt, time_wt, midpt_wt]
+
+    % Mid Points
     qMid1 = inverse_kinematics(0.4, 0.6, 1, 1);
     qMid2 = inverse_kinematics(0.4, 0.8, 1, 1);
     qMid3 = inverse_kinematics(0.4, 0.9, 1, 1);
     qMid4 = inverse_kinematics(0.4, 1.2, 1, 1);
 
     % Calculate the error metric 
-    distto1 = w1 * sum((y(:, 5:6) - qDes(1,:)).^2,2) + w2 * sum((abs(time(1) - t(:,1))).^2,2); 
-    distto2 = w1 * sum((y(:, 5:6) - qDes(2,:)).^2,2) + w2 * sum((abs(time(1) - t(:,1))).^2,2);  
-    distto3 = w3 * sum((y(:, 5:6) - qMid1').^2,2);
-    distto4 = w3 * sum((y(:, 5:6) - qMid2').^2,2);
-    distto5 = w3 * sum((y(:, 5:6) - qMid3').^2,2);
-    distto6 = w3 * sum((y(:, 5:6) - qMid4').^2,2);
-    error   = min(distto1) + min(distto2)+ min(distto5);
-    % error   = min(distto1) + min(distto2)+ min(distto3)+ min(distto4)+ min(distto5)+ min(distto6);
-    % error   = min(distto1) + min(distto2);
+    distto1 = w1 * sum((y(:, 5:6) - qDes(1,:)).^2,2) + w2 * (sum((time(1) - t).^2,2)); 
+    distto2 = 3000 * sum((y(:, 5:6) - qMid3').^2,2);
+    error   = min(distto1) + min(distto2);
+
 end
 
 % myTwolinkwithprefilter function
@@ -97,10 +93,6 @@ function dxdt = myTwolinkwithprefilter(t, x, wn, time, qDes, bj, kj)
     
     Numerator = V + [-bj 0; 0 -bj]*qd + [-kj 0; 0 -kj]*(q - x(1:2));
     qdd = M\Numerator;
-    if t < time(1)
-        dotx = A*x(1:4) + B*qDes(1, :)';
-    else 
-        dotx = A*x(1:4) + B*qDes(2, :)';
-    end
+    dotx = A*x(1:4) + B*qDes(1, :)';
     dxdt = [dotx; qd; qdd];
 end
