@@ -15,10 +15,10 @@ qMid = [inverse_kinematics(0.4, 0.6, 1, 1), ...
 
 %  Parameters
 time = [10 20];      % time
-wn = [2 1.5];        % Prefilter Omega     
-kj = [40 25 40 25];  % Spring  [t1q1 t1q2 t2q1 t2q2]
-bj = [10 30 10 30];  % Damping [t1q1 t1q2 t2q1 t2q2]
-wt = [400, .5, 1800]; % weights [qDes, Time, qMid]
+wn = [2 1.5];              % Prefilter Omega     
+kj = [40 25];        % Spring  [q1 q2]
+bj = [10 30];        % Damping [q1 q2]
+wt = [200, 1, 400];  % weights [qDes, Time, qMid]
 
 % Optimization setup
 initParams = [time  wn bj kj]; % Initial guess for [time, wn, bj, kj]
@@ -26,8 +26,8 @@ initParams = [time  wn bj kj]; % Initial guess for [time, wn, bj, kj]
 [init_T, init_Y] = ode45(@(t, x) myTwolinkwithprefilter(t, x, wn, initParams(1:2), qDes, bj, kj),   [0 initParams(2)], zeros(8, 1));
 
 % Lower and upper boundaries 
-lb = [0 0   1.5  1.5    10  10  10  10   2   2   2   2     ];   % Lower bounds
-ub = [2 4   10   10     100 100 100 100  200 200 200 200 ];     % Upper bounds
+lb = [0 0   1.5 1.5   10  10    2   2     ];   % Lower bounds
+ub = [2 6   10   10     200 200   200 200 ];     % Upper bounds
 
 % Objective Function
 objectiveFunc = @(params) objectiveFunction(params, qDes, wt, qMid);
@@ -37,7 +37,7 @@ options = optimset('Display', 'iter', 'TolFun', 1e-6, 'MaxIter', 400);
 optimalParams = fmincon(objectiveFunc, initParams, [], [], [], [], lb, ub, [], options);
 
 % Simulate with optimal parameters and plot results
-[t, y] = ode45(@(t, x) myTwolinkwithprefilter(t, x, optimalParams(3:4), optimalParams(1:2), qDes, optimalParams(5:8), optimalParams(9:12)), [0 optimalParams(2)], zeros(8, 1));
+[t, y] = ode45(@(t, x) myTwolinkwithprefilter(t, x, optimalParams(3:4), optimalParams(1:2), qDes, optimalParams(5:6), optimalParams(7:8)), [0 optimalParams(2)], zeros(8, 1));
 
 % Output
 xAct = forward_kinematics(y(:, 5), y(:, 6), 1, 1);
@@ -50,14 +50,11 @@ figure(1); hold on; grid on;
 plot(xInit(:, 1), xInit(:, 2), '-');
 plot(xAct(:, 1), xAct(:, 2), '-');
 plot(xDes(:, 1), xDes(:, 2), 'o-');
-plot(0.4,0.6, '*',0.4,0.7, '*',0.4,0.8, '*',0.4,0.9, '*'); 
+plot(0.4,0.6, '*',0.4,0.8, '*',0.4,0.9, '*',0.4,1.2, '*'); 
 xlabel('X axis'); ylabel('Y axis');
 legend('Initial','Optimised', 'Desired');
 title('Optimized Trajectory Tracking');
-disp(['Opt Time: ', num2str(optimalParams(1:2))])
-disp(['Opt Wn  : ', num2str(optimalParams(3:4))])
-disp(['Opt bj  : ', num2str(optimalParams(5:8))])
-disp(['Opt kj  : ', num2str(optimalParams(9:12))])
+disp(['Optimized Parameters :', num2str(optimalParams)])
 
 % % Mid points in joint space
 % figure(2);plot(y(:,5),y(:,6),qMid(1,:),qMid(2,:),'o');
@@ -101,7 +98,7 @@ function error = objectiveFunction(params, qDes,wt,qMid)
     x0(1:2) = [qDes(1, 1); qDes(1, 2)];
     
     % Simulate the system
-    [t, y] = ode45(@(t, x) myTwolinkwithprefilter(t, x, params(3:4), params(1:2), qDes, params(5:8), params(9:12)),   [0 params(2)], x0);
+    [t, y] = ode45(@(t, x) myTwolinkwithprefilter(t, x, params(3:4), params(1:2), qDes, params(5:6), params(7:8)),   [0 params(2)], x0);
 
     % Calculate the error metric 
     distto1 = min(sum((y(:, 5:6) - qDes(1,:)).^2,2) + sum((params(1) - t).^2,2) ); 
@@ -156,15 +153,11 @@ function dxdt = myTwolinkwithprefilter(t, x, wn, time, qDes, bj, kj)
          ka + kb*cos(q2), ka];
     V = ka*sin(q2)*([0 -1; 1 0] * [q1p^2; q2p^2] + [-2*q1p*q2p; 0]);
     
-    % Numerator = V + [-bj(1) 0; 0 -bj(2)]*qd + [-kj(1) 0; 0 -kj(2)]*(q - x(1:2));
-    % qdd = M\Numerator;
+    Numerator = V + [-bj(1) 0; 0 -bj(2)]*qd + [-kj(1) 0; 0 -kj(2)]*(q - x(1:2));
+    qdd = M\Numerator;
     if t < time(1)
-        Numerator = V + [-bj(1) 0; 0 -bj(2)]*qd + [-kj(1) 0; 0 -kj(2)]*(q - x(1:2));
-        qdd = M\Numerator;
         dotx = A1*x(1:4) + B1*qDes(1, :)';
     else
-        Numerator = V + [-bj(3) 0; 0 -bj(4)]*qd + [-kj(3) 0; 0 -kj(4)]*(q - x(1:2));
-        qdd = M\Numerator;
         dotx = A2*x(1:4) + B2*qDes(2, :)';
     end
     dxdt = [dotx; qd; qdd];
