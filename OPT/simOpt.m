@@ -2,6 +2,7 @@
 clear; clc;
 
 % Define desired trajectory and Middle Points
+%%%%%%%%%%%%%%%%%%
 qDes = [ -0.4986    2.5681;
           0.5371    1.5108 ];
 
@@ -13,12 +14,36 @@ qMid = [inverse_kinematics(0.4, 0.6, 1, 1), ...
         inverse_kinematics(0.4, 1.1, 1, 1), ...
         inverse_kinematics(0.4, 1.2, 1, 1)];
 
+%%%%%%%%%%%%%%%%%%
+% qDes = [ -0.4986    2.5681;
+%          -0.4771    1.5108 ];
+% qMid = [inverse_kinematics(0.6, 0.4, 1, 1), ...
+%         inverse_kinematics(0.7, 0.4, 1, 1), ...
+%         inverse_kinematics(0.8, 0.4, 1, 1), ...
+%         inverse_kinematics(0.9, 0.4, 1, 1), ...
+%         inverse_kinematics(1.0, 0.4, 1, 1), ...
+%         inverse_kinematics(1.1, 0.4, 1, 1), ...
+%         inverse_kinematics(1.2, 0.4, 1, 1)];
+% %%%%%%%%%%%%%%%%%
+% 
+% qDes = [ -0.4986    2.5681;
+%          1.3517     2.4039];
+% 
+% qMid = [inverse_kinematics(0.2, 0.4, 1, 1), ...
+%         inverse_kinematics(0.1, 0.4, 1, 1), ...
+%         inverse_kinematics(0.0, 0.4, 1, 1), ...
+%         inverse_kinematics(-0.1, 0.4, 1, 1), ...
+%         inverse_kinematics(-0.2, 0.4, 1, 1), ...
+%         inverse_kinematics(-0.3, 0.4, 1, 1), ...
+%         inverse_kinematics(-0.4, 0.4, 1, 1)];
+
 %  Parameters
-time = [10 20];      % time
-wn = [2 1.5];        % Prefilter Omega     
-kj = [40 25 40 25];  % Spring  [t1q1 t1q2 t2q1 t2q2]
-bj = [10 30 10 30];  % Damping [t1q1 t1q2 t2q1 t2q2]
-wt = [400, .5, 1800]; % weights [qDes, Time, qMid]
+time = [10 20];         % time
+wn   = [2 1.5];         % Prefilter Omega     
+kj   = [40 25 40 25];   % Spring  [t1q1 t1q2 t2q1 t2q2]
+bj   = [10 30 10 30];   % Damping [t1q1 t1q2 t2q1 t2q2]
+% wt   = [400, .5, 1800]; % weights [qDes, Time, qMid]
+wt   = [400, .5, 1800]; % weights [qDes, Time, qMid]
 
 % Optimization setup
 initParams = [time  wn bj kj]; % Initial guess for [time, wn, bj, kj]
@@ -27,7 +52,7 @@ initParams = [time  wn bj kj]; % Initial guess for [time, wn, bj, kj]
 
 % Lower and upper boundaries 
 lb = [0 0   1.5  1.5    10  10  10  10   2   2   2   2     ];   % Lower bounds
-ub = [2 4   10   10     100 100 100 100  200 200 200 200 ];     % Upper bounds
+ub = [4 8   5    5     100 100 100 100  200 200 200 200 ];     % Upper bounds
 
 % Objective Function
 objectiveFunc = @(params) objectiveFunction(params, qDes, wt, qMid);
@@ -50,7 +75,7 @@ figure(1); hold on; grid on;
 plot(xInit(:, 1), xInit(:, 2), '-');
 plot(xAct(:, 1), xAct(:, 2), '-');
 plot(xDes(:, 1), xDes(:, 2), 'o-');
-plot(0.4,0.6, '*',0.4,0.7, '*',0.4,0.8, '*',0.4,0.9, '*',0.4,1.0, '*',0.4,1.1, '*',0.4,1.2, '*'); 
+% plot(0.6,0.4, '*',0.7,0.4, '*',0.8,0.4, '*',0.9,0.4, '*',1.0,0.4, '*',1.1,0.4, '*',1.2,0.4, '*'); 
 xlabel('X axis'); ylabel('Y axis');
 legend('Initial','Optimised', 'Desired');
 title('Optimized Trajectory Tracking');
@@ -59,36 +84,36 @@ disp(['Opt Wn  : ', num2str(optimalParams(3:4))])
 disp(['Opt bj  : ', num2str(optimalParams(5:8))])
 disp(['Opt kj  : ', num2str(optimalParams(9:12))])
 
-% Mid points in joint space
-figure(2);plot(y(:,5),y(:,6),qMid(1,:),qMid(2,:),'o');
-xlabel('Joint 1 position')
-ylabel('Joint 2 position')
-
-title('joint space of a (near) optimal staight line in cartesian space')
-
-% joint space plot
-figure(3); grid on; hold on;
-plot(t,y(:,5:6));
-xlabel('Time (s)')
-ylabel('Position (rad)')
-legend('Q1','Q2')
-title('Joint position (rad)')
-
-%  cartesian space plot
-figure(4); hold on; grid on;
-plot(xAct(:,1),xAct(:,2))
-xlabel('X axis')
-ylabel('Y axis')
-legend('X','Y')
-title('Cartesian Position (m)')
-
-% x/y vs time
-figure(5); grid on; hold on;
-plot(t,xAct(:,1:2))
-xlabel('Time (s)')
-ylabel('Position')
-legend('X','Y')
-title('Cartesian Position vs Time')
+% % Mid points in joint space
+% figure(2);plot(y(:,5),y(:,6),qMid(1,:),qMid(2,:),'o');
+% xlabel('Joint 1 position')
+% ylabel('Joint 2 position')
+% 
+% title('joint space of a (near) optimal staight line in cartesian space')
+% 
+% % joint space plot
+% figure(3); grid on; hold on;
+% plot(t,y(:,5:6));
+% xlabel('Time (s)')
+% ylabel('Position (rad)')
+% legend('Q1','Q2')
+% title('Joint position (rad)')
+% 
+% %  cartesian space plot
+% figure(4); hold on; grid on;
+% plot(xAct(:,1),xAct(:,2))
+% xlabel('X axis')
+% ylabel('Y axis')
+% legend('X','Y')
+% title('Cartesian Position (m)')
+% 
+% % x/y vs time
+% figure(5); grid on; hold on;
+% plot(t,xAct(:,1:2))
+% xlabel('Time (s)')
+% ylabel('Position')
+% legend('X','Y')
+% title('Cartesian Position vs Time')
 
 % publish('simOpt.m','pdf');
 % disp(sprintf('KY %s \t %s \t %s',mfilename,pwd,datetime("now")));
