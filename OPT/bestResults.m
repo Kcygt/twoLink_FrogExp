@@ -18,7 +18,7 @@ time = [10 20];      % time
 wn = [2 1.5];              % Prefilter Omega     
 kj = [40 25];        % Spring  [q1 q2]
 bj = [10 30];        % Damping [q1 q2]
-wt = [200, 1, 400];  % weights [qDes, Time, qMid]
+wt = [400, 1, 1800];  % weights [qDes, Time, qMid]
 
 % Optimization setup
 initParams = [time  wn bj kj]; % Initial guess for [time, wn, bj, kj]
