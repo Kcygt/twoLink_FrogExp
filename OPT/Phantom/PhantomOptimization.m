@@ -2,31 +2,43 @@
 clear; clc;
 
 % Define desired trajectory and Middle Points
-qDes = [ 0.4481, -0.0075, 0.1361];
+% qDes = [ 0.4481, -0.0075, 0.1361];
+qDes = [ 0.7854, 0, 0 ];
 qMid = zeros(4,3);
-qMid(1,:) = IK(0.02, 0,0);
-qMid(2,:) = IK(0.04, 0,0);
-qMid(3,:) = IK(0.06, 0,0);
-qMid(4,:) = IK(0.08, 0,0);
+qMid(1,:) = IK(0.03, 0,-0.0127);
+qMid(2,:) = IK(0.06, 0,-0.0268);
+qMid(3,:) = IK(0.09, 0,-0.0409);
+qMid(4,:) = IK(0.12, 0,-0.0549);
 
-
-%  Parameters
+%  Parameters  0.0528404      10.2888      11.2778      10.7457      0.19054      5.13513      9.99989      8.29814      50.5053      99.9982
 time = 10;      % time
-wn = [2 2 2];              % Prefilter Omega     
-kj = [40 25 15];        % Spring  [q1 q2]
-bj = [10 30 20];        % Damping [q1 q2]
-wt = [400, 1, 1800];  % weights [qDes, Time, qMid]
+wn = [ 0.5 3 5];              % Prefilter Omega     
+kj = [.01 0.1 0.01];        % Spring  [q1 q2]
+bj = [0.3 0.03  0.9];        % Damping [q1 q2]
+wt = [10, .1, 18000];         % weights [qDes, Time, qMid]
 
 % Optimization setup
 initParams = [time  wn bj kj]; % Initial guess for [time, wn, bj, kj]
 
-[init_T, init_Y] = ode45(@(t, x) myTwolinkwithprefilter(t, x, wn, initParams(1), qDes, bj, kj),   [0 initParams(1)], zeros(12, 1));
-
-
+[init_T, init_Y] = ode45(@(t, x) myTwolinkwithprefilter(t, x, wn, time, qDes, bj, kj),   [0 time], zeros(12, 1));
+[xInit,yInit,zInit] = FK(init_Y(:,7),init_Y(:,8),init_Y(:,9));
+plot(xInit,zInit,'.')
+% figure(1);
+% plot(init_Y(:,1),'*-')
+% 
+% figure(2);
+% plot(init_Y(:,3),'*-')
+% 
+% figure(3); hold on;
+% plot(xInit,zInit,'-.')
+% plot(0.12, -0.0549,'o')
+% plot(0.09, -0.0409,'o')
+% plot(0.06, -0.0268,'o')
+% plot(0.03, -0.0127,'o')
 
 % Lower and upper boundaries 
-lb = [0    1.5   1.5  1.5    10  10  10     2   2   2 ];   % Lower bounds
-ub = [2    10    10   10     200 200 200    200 200 200 ];     % Upper bounds
+lb = [1     0.01   0.01  0.01    .001  .001  .001  0.01  0.01 0.01];   % Lower bounds
+ub = [2     30    30 30     5 5 5      10 10 10 ];     % Upper bounds
 
 % Objective Function
 objectiveFunc = @(params) objectiveFunction(params, qDes, wt, qMid);
@@ -41,17 +53,25 @@ optimalParams = fmincon(objectiveFunc, initParams, [], [], [], [], lb, ub, [], o
 % Output
 [xAct,yAct,zAct] = FK(y(:,7),y(:,8),y(:,9));
 [xDes,yDes,zDes] = FK(qDes(:, 1), qDes(:, 2), qDes(:,3));
-[xInit,yInit,zInit] = FK(init_Y(:,7),init_Y(:,8),init_Y(:,9));
+% [xInit,yInit,zInit] = FK(init_Y(:,7),init_Y(:,8),init_Y(:,9));
 
 % Plotting
 % Desired, Actual and Optimised Data
 figure(1); hold on; grid on;
-plot(xInit(:, 1), xInit(:, 2), '-');
-plot(xAct(:, 1), xAct(:, 2), '-');
-plot(xDes(:, 1), xDes(:, 2), 'o-');
-plot(0.4,0.6, '*',0.4,0.8, '*',0.4,0.9, '*',0.4,1.2, '*'); 
+plot(xInit, zInit, '-');
+legend('Initial')
+title('Initial Trajectory Tracking');
+
+figure(2); hold on; grid on;
+plot(xAct, zAct, '-');
+plot(xDes, zDes, 'o-');
+plot(0.03, -0.0127,'*')
+plot(0.06, -0.0268,'*')
+plot(0.09, -0.0409,'*')
+plot(0.12, -0.0549,'*')
+
 xlabel('X axis'); ylabel('Y axis');
-legend('Initial','Optimised', 'Desired');
+legend('Optimised', 'Desired');
 title('Optimized Trajectory Tracking');
 disp(['Optimized Parameters :', num2str(optimalParams)])
 
@@ -125,18 +145,19 @@ end
 function dxdt = myTwolinkwithprefilter(t, x, wn, time, qDes, bj, kj)
     zeta = 1;
     A = [zeros([3 3]) eye(3); -eye(3)*wn(1)^2 -eye(3)*2*zeta*wn(1)];
-    B = [0 0 0; 0 0 0;0 0 0; wn(1)^2 0 0;0 wn(1)^2 0; 0 0 wn(1)^2 ];
+    B = [0 0 0; 0 0 0;0 0 0; wn(1)^2 0 0;0 wn(2)^2 0; 0 0 wn(3)^2 ];
     
 
     % Actual position and velocity
-    q = x(7:9);
-    qd = x(10:12);
+    q   = x(7:9);
+    qd  = x(10:12);
+    
     q1p = x(10); q2p = x(11); q3p = x(12);
-    q1 = x(7); q2 = x(8); q3 = x(9);
+    q1  = x(7); q2 = x(8); q3 = x(9);
     
     % Robot constants
     [M,C,G] = compute_M_C_G(q1,q2,q3,q1p,q2p,q3p);
-    Numerator = C*qd + [-bj(1) 0 0; 0 -bj(2) 0; 0 0 -bj(3)  ]*qd + [-kj(1) 0 0; 0 -kj(2) 0; 0 0 -kj(3)]*(q - x(1:3));
+    Numerator = C*qd + [-bj(1) 0 0; 0 -bj(2) 0; 0 0 -bj(3)  ]*(qd-x(4:6)) + [-kj(1) 0 0; 0 -kj(2) 0; 0 0 -kj(3)]*(q - x(1:3));
     qdd = M\Numerator;
    
     dotx = A*x(1:6) + B*qDes(1, :)';
@@ -226,7 +247,6 @@ function [M, C, G] = compute_M_C_G(theta1, theta2,theta3, dtheta1, dtheta2,dthet
     C = [C11 C12 C13; C21 0 C23; C31 C32 0];
     
     % GRAVITY
-    
     N2 = 1/2*g*(2*l1*m_a + 2*l5*m_be + l1*m_c)*cos(theta2);
     N3 = 1/2*g*(l2*m_a + 2*l3*m_c - 2*l6*m_df)*sin(theta3);
     
