@@ -3,7 +3,7 @@ clear; clc;
 
 % Define desired trajectory and Middle Points
 % qDes = [ 0.4481, -0.0075, 0.1361];
-qDes = [ 0.7854, 0, 0 ];
+qDes = [ 0.7854, pi/4, pi/8 ];
 qMid = zeros(4,3);
 qMid(1,:) = IK(0.03, 0,-0.0127);
 qMid(2,:) = IK(0.06, 0,-0.0268);
@@ -12,9 +12,9 @@ qMid(4,:) = IK(0.12, 0,-0.0549);
 
 %  Parameters  0.0528404      10.2888      11.2778      10.7457      0.19054      5.13513      9.99989      8.29814      50.5053      99.9982
 time = 10;      % time
-wn = [ 0.5 3 5];              % Prefilter Omega     
-kj = [.01 0.1 0.01];        % Spring  [q1 q2]
-bj = [0.3 0.03  0.9];        % Damping [q1 q2]
+wn = [ 5 3 5];              % Prefilter Omega     
+kj = [10 10 10];        % Spring  [q1 q2]
+bj = [0.3 0.3  0.9];        % Damping [q1 q2]
 wt = [10, .1, 18000];         % weights [qDes, Time, qMid]
 
 % Optimization setup
@@ -22,7 +22,7 @@ initParams = [time  wn bj kj]; % Initial guess for [time, wn, bj, kj]
 
 [init_T, init_Y] = ode45(@(t, x) myTwolinkwithprefilter(t, x, wn, time, qDes, bj, kj),   [0 time], zeros(12, 1));
 [xInit,yInit,zInit] = FK(init_Y(:,7),init_Y(:,8),init_Y(:,9));
-plot(xInit,zInit,'.')
+plot3(xInit,yInit,zInit,'.')
 % figure(1);
 % plot(init_Y(:,1),'*-')
 % 
