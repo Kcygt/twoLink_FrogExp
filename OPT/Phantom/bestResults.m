@@ -15,7 +15,7 @@ qMid = [inverse_kinematics(0.4, 0.6, 1, 1), ...
 
 %  Parameters
 time = [10 20];      % time
-wn = [2 1.5];        % Prefilter Omega     
+wn = [20 15];        % Prefilter Omega     
 kj = [40 25];        % Spring  [q1 q2]
 bj = [10 30];        % Damping [q1 q2]
 wt = [400, 1, 1800];  % weights [qDes, Time, qMid]
@@ -55,40 +55,6 @@ xlabel('X axis'); ylabel('Y axis');
 legend('Initial','Optimised', 'Desired');
 title('Optimized Trajectory Tracking');
 disp(['Optimized Parameters :', num2str(optimalParams)])
-
-% % Mid points in joint space
-% figure(2);plot(y(:,5),y(:,6),qMid(1,:),qMid(2,:),'o');
-% xlabel('Joint 1 position')
-% ylabel('Joint 2 position')
-% 
-% title('joint space of a (near) optimal staight line in cartesian space')
-% 
-% % joint space plot
-% figure(3); grid on; hold on;
-% plot(t,y(:,5:6));
-% xlabel('Time (s)')
-% ylabel('Position (rad)')
-% legend('Q1','Q2')
-% title('Joint position (rad)')
-% 
-% %  cartesian space plot
-% figure(4); hold on; grid on;
-% plot(xAct(:,1),xAct(:,2))
-% xlabel('X axis')
-% ylabel('Y axis')
-% legend('X','Y')
-% title('Cartesian Position (m)')
-% 
-% % x/y vs time
-% figure(5); grid on; hold on;
-% plot(t,xAct(:,1:2))
-% xlabel('Time (s)')
-% ylabel('Position')
-% legend('X','Y')
-% title('Cartesian Position vs Time')
-
-% publish('simOpt.m','pdf');
-% disp(sprintf('KY %s \t %s \t %s',mfilename,pwd,datetime("now")));
 
 % Objective function
 function error = objectiveFunction(params, qDes,wt,qMid)
@@ -175,4 +141,11 @@ function qDes = inverse_kinematics(x, y, l1, l2)
     psi = atan2(l2 * sin(q2), l1 + l2 * cos(q2));
     q1 = phi - psi;
     qDes = [q1; q2];
+end
+
+% Function Definitions
+function P = forward_kinematics(q1, q2, l1, l2)
+    x = l1*cos(q1) + l2*cos(q1 + q2);
+    y = l1*sin(q1) + l2*sin(q1 + q2);
+    P = [x, y];
 end

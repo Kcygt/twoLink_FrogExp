@@ -2,105 +2,28 @@
 clear; clc;
 
 % Define desired trajectory and Middle Points
-% qDes = [ 0.4481, -0.0075, 0.1361];
-% qDes = [ 0.7854, pi/4, pi/8 ];
-qDes = [0.1914,   -0.0445,    0.3336; 
-            0.2979, -0.0134, 0.1827
-];
+qDes = [0.1914,  -0.0445,  0.3336; 
+        0.2979,  -0.0134,  0.1827];
+
 qMid = zeros(3,3);
 qMid(1,:) = IK(0.02, 0,0.014);
 qMid(2,:) = IK(0.03, 0,0.024);
 qMid(3,:) = IK(0.04, 0,0.034);
-% qMid(4,:) = IK(0.12, 0,-0.0549);
 
 %  Parameters  0.0528404      10.2888      11.2778      10.7457      0.19054      5.13513      9.99989      8.29814      50.5053      99.9982
-time = 5;      % time
-wn = [ 5 3 4];              % Prefilter Omega     
-kj = [10 10 10];        % Spring  [q1 q2]
-bj = [1 1  1];        % Damping [q1 q2]
+time =10;      % time
+wn = [ 1 5 10];       % Prefilter Omega     
+kj = [10 10 10];     % Spring  [q1 q2]
+bj = [1 1  1];       % Damping [q1 q2]
 wt = [800, .1, 3000];         % weights [qDes, Time, qMid]
 
 % Optimization setup
 initParams = [time  wn bj kj]; % Initial guess for [time, wn, bj, kj]
+initState = zeros(12, 1); % 12 states for a three-link robot
 
-[init_T, init_Y] = ode45(@(t, x) myTwolinkwithprefilter(t, x, wn, time, qDes, bj, kj),   [0 time], zeros(12, 1));
+[init_T, init_Y] = ode45(@(t, x) myTwolinkwithprefilter(t, x, wn, time, qDes, bj, kj),   [0 time(1)], initState);
 [xInit,yInit,zInit] = FK(init_Y(:,7),init_Y(:,8),init_Y(:,9));
 
-% figure(1); hold on; grid on;
-% plot(xInit,zInit,'.')
-% plot(0.02,0.01,'*',0.03,0.02,'*',0.04,0.03,'*')
-
-% Lower and upper boundaries 
-% lb = [0   1   1   1   20  20  20  10  10  10];   % Lower bounds
-% ub = [2   10  10  10  30  30  30  30  30  30];   % Upper bounds
-
-lb = [3   .1 .1 .1    .1 .1 .1    1 1 1];   % Lower bounds
-ub = [5   30 30 30    10 10 10     50  50 50];   % Upper bounds
- 
-% Objective Function
-objectiveFunc = @(params) objectiveFunction(params, qDes, wt, qMid);
-
-% Run optimization
-options = optimset('Display', 'iter', 'TolFun', 1e-6, 'MaxIter', 400);
-optimalParams = fmincon(objectiveFunc, initParams, [], [], [], [], lb, ub, [], options);
-
-% Simulate with optimal parameters and plot results
-[t, y] = ode45(@(t, x) myTwolinkwithprefilter(t, x, optimalParams(2:4), optimalParams(1), qDes, optimalParams(5:7), optimalParams(8:10)), [0 optimalParams(1)], zeros(12, 1));
-
-% Output
-[xAct,yAct,zAct] = FK(y(:,7),y(:,8),y(:,9));
-[xDes,yDes,zDes] = FK(qDes(:, 1), qDes(:, 2), qDes(:,3));
-% [xInit,yInit,zInit] = FK(init_Y(:,7),init_Y(:,8),init_Y(:,9));
-
-% Plotting
-% Desired, Actual and Optimised Data
-figure(1); hold on; grid on;
-plot(xInit, zInit, '-.');
-plot(xAct, zAct, '-');
-plot(xDes, zDes, '*');
-
-plot(0.02, 0.014,'*')
-plot(0.03, 0.024,'*')
-plot(0.04, 0.034,'*')
-
-xlabel('X axis'); ylabel('Y axis');
-legend('Initial','Optimised', 'Desired')
-title('Initial Trajectory Tracking');
-disp(['Optimized Parameters :', num2str(optimalParams)])
-
-% % Mid points in joint space
-% figure(2);plot(y(:,5),y(:,6),qMid(1,:),qMid(2,:),'o');
-% xlabel('Joint 1 position')
-% ylabel('Joint 2 position')
-% 
-% title('joint space of a (near) optimal staight line in cartesian space')
-% 
-% % joint space plot
-% figure(3); grid on; hold on;
-% plot(t,y(:,5:6));
-% xlabel('Time (s)')
-% ylabel('Position (rad)')
-% legend('Q1','Q2')
-% title('Joint position (rad)')
-% 
-% %  cartesian space plot
-% figure(4); hold on; grid on;
-% plot(xAct(:,1),xAct(:,2))
-% xlabel('X axis')
-% ylabel('Y axis')
-% legend('X','Y')
-% title('Cartesian Position (m)')
-% 
-% % x/y vs time
-% figure(5); grid on; hold on;
-% plot(t,xAct(:,1:2))
-% xlabel('Time (s)')
-% ylabel('Position')
-% legend('X','Y')
-% title('Cartesian Position vs Time')
-
-% publish('simOpt.m','pdf');
-% disp(sprintf('KY %s \t %s \t %s',mfilename,pwd,datetime("now")));
 
 % Objective function
 function error = objectiveFunction(params, qDes,wt,qMid)
@@ -118,10 +41,7 @@ function error = objectiveFunction(params, qDes,wt,qMid)
     distMid1 = min(sum((y(:, 7:9) - qMid(1,:)).^2,2));  
     distMid2 = min(sum((y(:, 7:9) - qMid(2,:)).^2,2));       
     distMid3 = min(sum((y(:, 7:9) - qMid(3,:)).^2,2));       
-    % distMid4 = min(sum((y(:, 7:9) - qMid(4,:)).^2,2));      
 
-    % time1 = min(sum((params(1) - t).^2,2));
-    % time2 = min(sum((params(2) - t).^2,2));
     time1 = params(1);
 
     error   = wt(1) * distto1  + ...  % Desired
@@ -130,15 +50,10 @@ function error = objectiveFunction(params, qDes,wt,qMid)
               wt(3) * distMid3 ;%+ wt(3) * distMid4;  % Mid-point
 
 
-    % distto5 = 5000 * sum((y(:, 5:6) - qMid3'),2) + w2 * (sum(  (   (time(1) + (time(2) - time(1))/2 ) - t).^2   ,2));
-
 end
 
 % myTwolinkwithprefilter function
 function dxdt = myTwolinkwithprefilter(t, x, wn, time, qDes, bj, kj)
-    % zeta = 1;
-    % A = [zeros([3 3]) eye(3); -eye(3)*wn(1)^2 -eye(3)*2*zeta*wn(1)];
-    % B = [0 0 0; 0 0 0;0 0 0; wn(1)^2 0 0;0 wn(2)^2 0; 0 0 wn(3)^2 ];
 
     zeta = 1;
     A = [zeros(3,3) eye(3);
@@ -158,9 +73,8 @@ function dxdt = myTwolinkwithprefilter(t, x, wn, time, qDes, bj, kj)
     [M,C,G] = compute_M_C_G(q1,q2,q3,q1p,q2p,q3p);
     Numerator = C*qd + Kd*(qd-x(4:6)) + Kp*(q - x(1:3));
     qdd = M\Numerator;
-   
+    
     dotx = A*x(1:6) + B*qDes(1, :)';
-   
     dxdt = [dotx; qd; qdd];
 end
 
