@@ -17,11 +17,11 @@ qMid(9,:) = IK(0.045, 0, 0.036);
 qMid(10,:) = IK(0.05, 0, 0.045);
 
 % Parameters
-time = 2.49792;  % Time
-wn = [12.1325      1.22761      6.74862];  % Prefilter Omega     
-kj = [31.7202       39.432      25.6339];  % Spring constants
-bj = [1.08273      12.6814      1.83025];  % Damping constants
-wt = [0, 0.0000, 100];  % Weights [qDes, Time, qMid]
+time = 10;  % Time
+wn = [2 2 4];  % Prefilter Omega     
+kj = [20 20 20];  % Spring constants
+bj = [5 5 5];  % Damping constants
+wt = [100, 0.01, 10000];  % Weights [qDes, Time, qMid]
 
 % Optimization setup
 initParams = [time wn bj kj]; % Initial guess
@@ -30,10 +30,10 @@ initParams = [time wn bj kj]; % Initial guess
 [xInit, yInit, zInit] = FK(init_Y(:,7), init_Y(:,8), init_Y(:,9));
 [xD, yD, zD] = FK(init_Y(:,1), init_Y(:,2), init_Y(:,3));
 
-plot(xInit,zInit,'+',xD,zD,'.')
+% plot(xInit,zInit,'+',xD,zD,'.')
 % Lower and upper boundaries 
-lb = [2   10 1 1      1 1 1    1  1  1];   
-ub = [3   20 50 10   30 30 30    100 100 100];  
+lb = [2   10 1 1     5 5 5  20  20  20];   
+ub = [3   20 10 10   5 5 5  20 20 20];  
 
 % Objective Function
 objectiveFunc = @(params) objectiveFunction(params, qDes, wt, qMid);
