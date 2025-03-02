@@ -3,39 +3,47 @@ clear; clc;
 % Define desired trajectory and Middle Points
 qDes = [0.1914, -0.0445, 0.3336];
 
-qMid = zeros(3,3);
-qMid(1,:) = IK(0.02, 0, 0.01);
-qMid(2,:) = IK(0.03, 0, 0.02);
-qMid(3,:) = IK(0.04, 0, 0.03);
+qMid = zeros(10,3);
+qMid(1,:) = IK(0.005, 0, 0.005);
+qMid(2,:) = IK(0.01, 0, 0.008);
+qMid(3,:) = IK(0.015, 0, 0.01);
+
+qMid(4,:) = IK(0.02, 0, 0.013);
+qMid(5,:) = IK(0.025, 0, 0.016);
+qMid(6,:) = IK(0.03, 0, 0.02);
+qMid(7,:) = IK(0.035, 0, 0.024);
+qMid(8,:) = IK(0.04, 0, 0.03);
+qMid(9,:) = IK(0.045, 0, 0.036);
+qMid(10,:) = IK(0.05, 0, 0.045);
 
 % Parameters
-time = 5;  % Time
-wn = [4.87 3.1 1.43];  % Prefilter Omega     
-kj = [30 30 30];  % Spring constants
-bj = [1 1 1];  % Damping constants
-wt = [500, 0.01, 1000];  % Weights [qDes, Time, qMid]
+time = 2.49792;  % Time
+wn = [12.1325      1.22761      6.74862];  % Prefilter Omega     
+kj = [31.7202       39.432      25.6339];  % Spring constants
+bj = [1.08273      12.6814      1.83025];  % Damping constants
+wt = [0, 0.0000, 100];  % Weights [qDes, Time, qMid]
 
 % Optimization setup
 initParams = [time wn bj kj]; % Initial guess
 
-[init_T, init_Y] = ode45(@(t, x) myTwolinkwithprefilter(t, x, wn, time, qDes, bj, kj), [0 time], zeros(12, 1));
+[init_T, init_Y] = ode23s(@(t, x) myTwolinkwithprefilter(t, x, wn, time, qDes, bj, kj), [0 time], zeros(12, 1));
 [xInit, yInit, zInit] = FK(init_Y(:,7), init_Y(:,8), init_Y(:,9));
 [xD, yD, zD] = FK(init_Y(:,1), init_Y(:,2), init_Y(:,3));
 
 plot(xInit,zInit,'+',xD,zD,'.')
 % Lower and upper boundaries 
-lb = [1   1 1 1   1 1 1    1  1  1];   
-ub = [5   5 5 5   2 2 2    10 10 10];  
+lb = [2   10 1 1      1 1 1    1  1  1];   
+ub = [3   20 50 10   30 30 30    100 100 100];  
 
 % Objective Function
 objectiveFunc = @(params) objectiveFunction(params, qDes, wt, qMid);
 
 % Run optimization
-options = optimset('Display', 'iter', 'TolFun', 1e-6, 'MaxIter', 100);
+options = optimset('Display', 'iter', 'TolFun', 1e-8, 'MaxIter', 100);
 optimalParams = fmincon(objectiveFunc, initParams, [], [], [], [], lb, ub, [], options);
 
 % Simulate with optimal parameters
-[t, y] = ode45(@(t, x) myTwolinkwithprefilter(t, x, optimalParams(2:4), optimalParams(1), qDes, optimalParams(5:7), optimalParams(8:10)), [0 optimalParams(1)], zeros(12, 1));
+[t, y] = ode23s(@(t, x) myTwolinkwithprefilter(t, x, optimalParams(2:4), optimalParams(1), qDes, optimalParams(5:7), optimalParams(8:10)), [0 optimalParams(1)], zeros(12, 1));
 
 % Output
 [xAct, yAct, zAct] = FK(y(:,7), y(:,8), y(:,9));
@@ -45,11 +53,18 @@ optimalParams = fmincon(objectiveFunc, initParams, [], [], [], [], lb, ub, [], o
 figure(1); hold on; grid on;
 plot(xInit, zInit, '-.');
 plot(xAct, zAct, '-');
-plot(xDes, zDes, '*');
+plot(xDes, zDes, 'o');
 
-plot(0.02, 0.01, '*')
+plot(0.005, 0.005, '*')
+plot(0.01, 0.008, '*')
+plot(0.015, 0.01, '*')
+plot(0.02, 0.013, '*')
+plot(0.025, 0.016, '*')
 plot(0.03, 0.02, '*')
+plot(0.035, 0.024, '*')
 plot(0.04, 0.03, '*')
+plot(0.045, 0.036, '*')
+plot(0.05, 0.045, '*')
 
 xlabel('X axis'); ylabel('Y axis');
 legend('Initial', 'Optimized', 'Desired')
@@ -63,7 +78,7 @@ function error = objectiveFunction(params, qDes, wt, qMid)
     x0(1:3) = qDes; 
     
     % Simulate the system
-    [t, y] = ode45(@(t, x) myTwolinkwithprefilter(t, x, params(2:4), params(1), qDes, params(5:7), params(8:10)), [0 params(1)], x0);
+    [t, y] = ode23s(@(t, x) myTwolinkwithprefilter(t, x, params(2:4), params(1), qDes, params(5:7), params(8:10)), [0 params(1)], x0);
 
     % Calculate error metric
     distto1 = min(sum((y(:, 7:9) - qDes).^2, 2) + sum((params(1) - t).^2, 2)); 
