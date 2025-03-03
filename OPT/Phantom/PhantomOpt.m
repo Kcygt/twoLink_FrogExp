@@ -3,25 +3,19 @@ clear; clc;
 % Define desired trajectory and Middle Points
 qDes = [0.1914, -0.0445, 0.3336];
 
-qMid = zeros(10,3);
-qMid(1,:) = IK(0.005, 0, 0.005);
-qMid(2,:) = IK(0.01, 0, 0.008);
-qMid(3,:) = IK(0.015, 0, 0.01);
-
-qMid(4,:) = IK(0.02, 0, 0.013);
-qMid(5,:) = IK(0.025, 0, 0.016);
-qMid(6,:) = IK(0.03, 0, 0.02);
-qMid(7,:) = IK(0.035, 0, 0.024);
-qMid(8,:) = IK(0.04, 0, 0.03);
-qMid(9,:) = IK(0.045, 0, 0.036);
-qMid(10,:) = IK(0.05, 0, 0.045);
+qMid = zeros(5,3);
+qMid(1,:) = IK(0.025, 0, 0.01);
+qMid(2,:) = IK(0.03,  0, 0.015);
+qMid(3,:) = IK(0.035, 0, 0.02);
+qMid(4,:) = IK(0.04,  0, 0.025);
+qMid(5,:) = IK(0.045, 0, 0.03);
 
 % Parameters
 time = 10;  % Time
-wn = [2 2 4];  % Prefilter Omega     
+wn = [1 1 1];  % Prefilter Omega     
 kj = [20 20 20];  % Spring constants
 bj = [5 5 5];  % Damping constants
-wt = [100, 0.01, 10000];  % Weights [qDes, Time, qMid]
+wt = [400, 0.01, 11000];  % Weights [qDes, Time, qMid]
 
 % Optimization setup
 initParams = [time wn bj kj]; % Initial guess
@@ -32,14 +26,14 @@ initParams = [time wn bj kj]; % Initial guess
 
 % plot(xInit,zInit,'+',xD,zD,'.')
 % Lower and upper boundaries 
-lb = [2   10 1 1     5 5 5  20  20  20];   
-ub = [3   20 10 10   5 5 5  20 20 20];  
+lb = [0   5  1  1  .1 .1 .1  40  40  40];   
+ub = [3   10 10 5   5  5  5  100 100 100];  
 
 % Objective Function
 objectiveFunc = @(params) objectiveFunction(params, qDes, wt, qMid);
 
 % Run optimization
-options = optimset('Display', 'iter', 'TolFun', 1e-8, 'MaxIter', 100);
+options = optimset('Display', 'iter', 'TolFun', 1e-6, 'MaxIter', 400);
 optimalParams = fmincon(objectiveFunc, initParams, [], [], [], [], lb, ub, [], options);
 
 % Simulate with optimal parameters
@@ -48,27 +42,22 @@ optimalParams = fmincon(objectiveFunc, initParams, [], [], [], [], lb, ub, [], o
 % Output
 [xAct, yAct, zAct] = FK(y(:,7), y(:,8), y(:,9));
 [xDes, yDes, zDes] = FK(qDes(1), qDes(2), qDes(3));
-
+% torque = bj .* (y(10:12) - y(4:6)) + Kj .* (y(7:9) - y(1:3));
 % Plotting
 figure(1); hold on; grid on;
 plot(xInit, zInit, '-.');
 plot(xAct, zAct, '-');
 plot(xDes, zDes, 'o');
 
-plot(0.005, 0.005, '*')
-plot(0.01, 0.008, '*')
-plot(0.015, 0.01, '*')
-plot(0.02, 0.013, '*')
-plot(0.025, 0.016, '*')
-plot(0.03, 0.02, '*')
-plot(0.035, 0.024, '*')
-plot(0.04, 0.03, '*')
-plot(0.045, 0.036, '*')
-plot(0.05, 0.045, '*')
+plot(0.025, 0.01, '*')
+plot(0.030, 0.015, '*')
+plot(0.035, 0.02, '*')
+plot(0.04, 0.025, '*')
+plot(0.045, 0.03, '*')
 
 xlabel('X axis'); ylabel('Y axis');
 legend('Initial', 'Optimized', 'Desired')
-title('Initial Trajectory Tracking');
+title('Cartesian Trajectory Tracking');
 
 disp(['Optimized Parameters: ', num2str(optimalParams)]);
 
@@ -89,7 +78,7 @@ function error = objectiveFunction(params, qDes, wt, qMid)
 end
 
 % myTwolinkwithprefilter function
-function dxdt = myTwolinkwithprefilter(t, x, wn, time, qDes, bj, kj)
+function dxdt= myTwolinkwithprefilter(t, x, wn, time, qDes, bj, kj)
     zeta = 1;
     A = [zeros(3,3) eye(3);
         -eye(3)*diag(wn).^2  -eye(3)*2*zeta*diag(wn)];
@@ -102,10 +91,11 @@ function dxdt = myTwolinkwithprefilter(t, x, wn, time, qDes, bj, kj)
     Kd = -diag(bj);  
 
     [M, C, G] = compute_M_C_G(q(1), q(2), q(3), qd(1), qd(2), qd(3));
-
-    qdd = M \ (C * qd + Kd * (qd - x(4:6)) + Kp * (q - x(1:3)));
+    torque = Kd * (qd - x(4:6)) + Kp * (q - x(1:3));
+    qdd = M \ (C * qd + torque);
 
     dxdt = [A*x(1:6) + B*qDes(:); qd; qdd];
+    
 end
 
 function [x, y, z] = FK(q1, q2, q3)
