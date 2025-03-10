@@ -18,7 +18,7 @@ qMid(4,:) = IK(xMid(4,1),xMid(4,2),xMid(4,3));
 qMid(5,:) = IK(xMid(5,1),xMid(5,2),xMid(5,3));
 
 % Parameters
-time = 5;  % Time
+time = 10;  % Time
 wn = [1 1 1];  % Prefilter Omega     
 kj = [50 50 50];  % Spring constants
 bj = [30 30 30];  % Damping constants
