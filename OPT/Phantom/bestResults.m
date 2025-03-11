@@ -47,15 +47,16 @@ xInit = forward_kinematics(init_Y(:, 5), init_Y(:, 6), 1, 1);
 % Plotting
 % Desired, Actual and Optimised Data
 figure(1); hold on; grid on;
-plot(xInit(:, 1), xInit(:, 2), '-');
-plot(xAct(:, 1), xAct(:, 2), '-');
-plot(xDes(:, 1), xDes(:, 2), 'o-');
-plot(0.4,0.6, '*',0.4,0.8, '*',0.4,0.9, '*',0.4,1.2, '*'); 
+plot(xInit(:, 1), xInit(:, 2), '-',LineWidth=1.5);
+plot(xAct(:, 1), xAct(:, 2), '-',LineWidth=1.5);
+% plot(xDes(:, 1), xDes(:, 2), 'o-');
+plot(0.4,0.6, '*',0.4,0.8, '*',0.4,0.9, '*',0.4,1.2, '*',LineWidth=2); 
 xlabel('X axis'); ylabel('Y axis');
-legend('Initial','Optimised', 'Desired');
+legend('Initial','Optimised');
 title('Optimized Trajectory Tracking');
 disp(['Optimized Parameters :', num2str(optimalParams)])
-
+text(0.4, 0.4, ' Start', 'VerticalAlignment', 'bottom', 'HorizontalAlignment', 'right')
+text(0.4, 1.4, ' End', 'VerticalAlignment', 'top', 'HorizontalAlignment', 'left')
 % Objective function
 function error = objectiveFunction(params, qDes,wt,qMid)
     

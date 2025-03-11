@@ -1,0 +1,28 @@
+% Parameters
+sigma = 1;  % Damping ratio
+wn = 6;     % Natural frequency
+num = wn^2; % Numerator of transfer function
+den = [1 2*sigma*wn wn^2]; % Denominator of transfer function
+
+% Create transfer function
+sys = tf(num, den);
+
+% Time vector
+t = 0:0.01:5; 
+
+% Input signal (step function)
+u = ones(size(t));
+
+% Simulate response
+[y, t] = lsim(sys, u, t);
+
+% Plot response
+figure(1); hold on;
+% plot([0 t'],[0 u],LineWidth=1.5)
+plot(t, y,LineWidth=1.5);
+xlabel('Time (s)');
+ylabel('Output');
+title('Second-Order Filter Response');
+grid on;
+text(0.5, 0.9, 'wn=6', 'VerticalAlignment', 'bottom', 'HorizontalAlignment', 'right')
+% text(0.4, 1.4, ' End', 'VerticalAlignment', 'top', 'HorizontalAlignment', 'left')
