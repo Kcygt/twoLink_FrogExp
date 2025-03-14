@@ -12,19 +12,39 @@ qMid(5,:) = IK(0.045, 0, 0.03);
 
 % Parameters
 time = 10;  % Time
-wn = [1 1 1];  % Prefilter Omega     
+wn = [1 1 10];  % Prefilter Omega     
 kj = [20 20 20];  % Spring constants
 bj = [5 5 5];  % Damping constants
 wt = [400, 0.001, 10000];  % Weights [qDes, Time, qMid]
 
 % Optimization setup
 
-[initParams, initY] = ode23s(@(t, x) myTwolinkwithprefilter(t, x, wn, time, qDes, bj, kj), [0 time], zeros(12, 1));
+[initT, initY] = ode23s(@(t, x) myTwolinkwithprefilter(t, x, wn, time, qDes, bj, kj), [0 time], zeros(12, 1));
 [xInit, yInit, zInit] = FK(initY(:,7), initY(:,8), initY(:,9));
 [xD, yD, zD] = FK(initY(:,1), initY(:,2), initY(:,3));
 
 % Prepare the figure for animation
-figure(1); hold on; grid on;
+
+qDes = 0.1914 * ones(size(initT));
+% figure(1); hold on; grid on;
+% % plot([0 initT'],[0 qDes(:,1)'])
+% plot(initT,initY(:,1))
+% text(4, 0.3, 'Under-Damped System', 'FontSize', 12, 'Color', 'r')
+% text(2,.05, 'Over-damped System', 'FontSize', 12, 'Color', 'r')
+% 
+% text(3,.13, 'Critical damping System', 'FontSize', 12, 'Color', 'r')
+% 
+% 
+% xlabel('Time(s)')
+% ylabel('Joint Position(rad)')
+% title('Impact of Sigma on Second-Order Filter Dynamics')
+% 
+
+% figure(1); hold on; grid on;
+
+
+
+figure(2); hold on; grid on;
 subplot(3,1,1)
 plot(initT, initY(:,7), 'LineWidth', 2)
 xlabel('Time (s)', 'FontSize', 16, 'FontName', 'Times New Roman')
@@ -46,48 +66,9 @@ xlabel('X Axis', 'FontSize', 16, 'FontName', 'Times New Roman')
 ylabel('Y Axis', 'FontSize', 16, 'FontName', 'Times New Roman')
 title('Cartesian Space Trajectory', 'FontSize', 20, 'FontName', 'Courier New') 
 
-% Animation loop
-for i = 1:length(initT)
-    q1 = initY(i, 7);
-    q2 = initY(i, 8);
-    q3 = initY(i, 9);
-
-    % Forward Kinematics to get position in Cartesian space
-    [x, y, z] = FK(q1, q2, q3);
-    
-    % Clear previous figure to update
-    clf;
-    
-    % Plot the joint positions and the trajectory in Cartesian space
-    subplot(3, 1, 1);
-    plot(initT, initY(:,7), 'LineWidth', 2);
-    xlabel('Time (s)', 'FontSize', 16, 'FontName', 'Times New Roman');
-    ylabel('Joint 1 (rad)', 'FontSize', 16, 'FontName', 'Times New Roman');
-    title('First Joint Position', 'FontSize', 20, 'FontName', 'Courier New');
-    grid on;
-
-    subplot(3, 1, 2);
-    plot(initT, initY(:,9), 'LineWidth', 2);
-    xlabel('Time (s)', 'FontSize', 16, 'FontName', 'Times New Roman');
-    ylabel('Joint 2 (rad)', 'FontSize', 16, 'FontName', 'Times New Roman');
-    title('Second Joint Position', 'FontSize', 20, 'FontName', 'Courier New');
-    grid on;
-
-    subplot(3, 1, 3);
-    plot(xInit, zInit, '-', 'LineWidth', 2);
-    hold on;
-    plot(x, z, 'ro', 'LineWidth', 2); % Plot the current position of the robot
-    xlabel('X Axis', 'FontSize', 16, 'FontName', 'Times New Roman');
-    ylabel('Z Axis', 'FontSize', 16, 'FontName', 'Times New Roman');
-    title('Cartesian Space Trajectory', 'FontSize', 20, 'FontName', 'Courier New');
-    hold off;
-    
-    pause(0.01);  % Pause for animation effect
-end
-
 % myTwolinkwithprefilter function
 function dxdt = myTwolinkwithprefilter(t, x, wn, time, qDes, bj, kj)
-    zeta = 1;
+    zeta = 3;
     A = [zeros(3,3) eye(3);
         -eye(3)*diag(wn).^2  -eye(3)*2*zeta*diag(wn)];
     B = [zeros(3,3); diag(wn).^2];
