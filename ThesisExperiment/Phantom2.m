@@ -4,8 +4,8 @@ clear; clc; close all;
 qDes = [0.1914, -0.0445, 0.3336];
 
 xMid = zeros(5,3);
-xMid(1,:) = [0.025, 0, 0.005];
-xMid(2,:) = [0.03,  0, 0.030];
+xMid(1,:) = [0.015, 0, 0.005];
+xMid(2,:) = [0.02,  0, 0.050];
 xMid(3,:) = [0.035, 0, 0.035];
 xMid(4,:) = [0.04,  0, 0.02];
 xMid(5,:) = [0.045, 0, 0.025];
@@ -19,12 +19,12 @@ qMid = zeros(5,3);
 
 % Parameters
 time = 20;  % Time
-zeta = [ 1 2 3];
-wn = [1 3 5];          % Prefilter Omega     
+zeta = [ 2 2 1];
+wn = [4 3 5];          % Prefilter Omega     
 kj = [100 90 80];       % Spring constants
 bj = [30 25 20];       % Damping constants
 % wt = [0.5, 1e-5, 100];  % Weights [qDes, Time, qMid]
-wt = [5, 1e-5, 30];  % Weights [qDes, Time, qMid]
+wt = [.5, 1e-5, 100];  % Weights [qDes, Time, qMid]
 
 % Optimization setup
 initParams = [time wn bj kj, zeta]; % Initial guess
