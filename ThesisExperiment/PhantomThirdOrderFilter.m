@@ -72,7 +72,7 @@ function dxdt = myTwolinkwithprefilter(t, x, wn, time, qDes, bj, kj, zeta)
     % Extract joint positions and velocities (q = 3, qd = 3)
     q = x(7:9);     % joint positions
     qd = x(10:12);  % joint velocities
-    
+    x
     % Define control gains for spring and damping
     Kp = diag(kj);  
     Kd = diag(bj);  

@@ -1,44 +1,41 @@
-clear; clc; close all;
+clear; clc;
 % close all;
 % Define desired trajectory and Middle Points
 qDes = [0.1914, -0.0445, 0.3336];
+xMid = [0.035, 0, 0.015 ];
+qMid = IK(xMid(1), xMid(2), xMid(3));
 
-xMid = zeros(5,3);
-xMid(1,:) = [0.025, 0, 0.005];
-xMid(2,:) = [0.03,  0, 0.030];
-xMid(3,:) = [0.035, 0, 0.035];
-xMid(4,:) = [0.04,  0, 0.02];
-xMid(5,:) = [0.045, 0, 0.025];
 
-qMid = zeros(5,3);
-[qMid(1,1),qMid(1,2),qMid(1,3)] = IK(xMid(1,1),xMid(1,2),xMid(1,3));
-[qMid(2,1),qMid(2,2),qMid(2,3)] = IK(xMid(2,1),xMid(2,2),xMid(2,3));
-[qMid(3,1),qMid(3,2),qMid(3,3)] = IK(xMid(3,1),xMid(3,2),xMid(3,3));
-[qMid(4,1),qMid(4,2),qMid(4,3)] = IK(xMid(4,1),xMid(4,2),xMid(4,3));
-[qMid(5,1),qMid(5,2),qMid(5,3)] = IK(xMid(5,1),xMid(5,2),xMid(5,3));
 
 % Parameters
 time = 20;  % Time
-zeta = [.4 1 3];
-wn = [10 1 1];          % Prefilter Omega     
+t1 = 10;
+t2 = 20;
+zeta1 = [1 1 1];       % Prefilter Zeta
+zeta2 = [1 1 1];       % Prefilter Zeta
 
-% wt = [0.5, 1e-5, 100];  % Weights [qDes, Time, qMid]
-wt = [0.4, 1e-6, 50];  % Weights [qDes, Time, qMid]
+wn1 = [1 1 1 ];          % Prefilter Omega     
+wn2 = [1 1 1 ];          % Prefilter Omega     
+
+kj1 = [50 50 50];       % Spring constants
+bj1 = [30 30 30];       % Damping constants
+
+kj2 = [50 50 50];       % Spring constants
+bj2 = [30 30 30];       % Damping constants
+
+wt1 = [0.5, 1e-5, 100];  % Weights [qDes, Time, qMid]
+wt2 = [0.5, 1e-5, 100];  % Weights [qDes, Time, qMid]
+
+% wt = [0.4, 1e-5, 10];  % Weights [qDes, Time, qMid]
 
 % Optimization setup
-initParams = [time wn zeta]; % Initial guess
+initParams = [t1 t2 wn1 wn2 bj1 bj2 kj1 kj2, zeta1, zeta2]; % Initial guess
 
-[init_T, init_Y] = ode23s(@(t, x) myTwolinkwithprefilter(t, x, wn, time, qDes, zeta), [0 time], zeros(12, 1));
-[xInit, yInit, zInit] = FK(init_Y(:,7), init_Y(:,8), init_Y(:,9));
-[xD, yD, zD] = FK(init_Y(:,1), init_Y(:,2), init_Y(:,3));
+[init_T, init_Y] = ode23s(@(t, x) myTwolinkwithprefilter(t, x, wn1,wn2, t1,t2, qDes, bj1,bj2, kj1,kj2, zeta1,zeta2), [0 t2], zeros(12, 1));
  
-% figure(1); hold on; grid on;
-% plot(xInit,zInit,'-')
-% plot(xMid(:,1),xMid(:,3),'*')
-
-% Lower and upper boundaries 
-lb = [1   20  1  1   0.1 0.1 0.1 ];   
-ub = [10  40 20 20   40  40  40  ];  
+% Upper and Lower Limits
+lb = [0  0       1  1  1  1  1  1      10 10 10 10 10 10     20  20  20  20  20  20    .1 .1 .1 .1 .1 .1 ];   
+ub = [10 10      20 20 20 20 20 20     40 40 40 40 40 40     100 100 100 100 100 100    3  3  3  3  3  3  ];  
 
 % Objective Function
 objectiveFunc = @(params) objectiveFunction(params, qDes, wt, qMid);
@@ -48,34 +45,9 @@ options = optimset('PlotFcns','optimplotfval','Display', 'off', 'TolFun', 1e-8, 
 optimalParams = fmincon(objectiveFunc, initParams, [], [], [], [], lb, ub, [], options);
 
 % Simulate with optimal parameters
-[t, y] = ode23s(@(t, x) myTwolinkwithprefilter(t, x, optimalParams(2:4), optimalParams(1), qDes, optimalParams(5:7)), [0 optimalParams(1)], zeros(12, 1));
+[t, y] = ode23s(@(t, x) myTwolinkwithprefilter(t, x, optimalParams(3:8), optimalParams(1:2), qDes, optimalParams(9:14), optimalParams(15:20),optimalParams(21:26)), [0 optimalParams(2)], zeros(12, 1));
 
-% Output
-[xAct, yAct, zAct] = FK(y(:,7), y(:,8), y(:,9));
-[xDes, yDes, zDes] = FK(qDes(1), qDes(2), qDes(3));
-% torque = bj .* (y(10:12) - y(4:6)) + Kj .* (y(7:9) - y(1:3));
-% Plotting
-figure; hold on; grid on;
-plot(xInit, zInit, '-.');
-plot(xAct, zAct, '-');
-plot(xDes, zDes, 'o');
-plot(xMid(:,1),xMid(:,3),'*')
-xlabel('X axis'); ylabel('Z axis');
-legend('Initial', 'Optimized', 'Desired')
-title('Cartesian Trajectory Tracking');
-
-
-% figure(2); hold on; grid on;
-% plot3(xInit, yInit, zInit, '-.');
-% plot3(xAct, yAct, zAct, '-');
-% plot3(xDes, yDes,zDes, 'o');
-% plot3(xMid(:,1),xMid(:,2),xMid(:,3),'*')
-% xlabel('X axis'); ylabel('Y axis'); zlabel('Z axis')
-% legend('Initial', 'Optimized', 'Desired')
-% title('Cartesian Trajectory Tracking');
-% view(3)
-
-
+Plotting
 disp(['Optimized Parameters: ', num2str(optimalParams)]);
 
 % Objective function
@@ -84,7 +56,7 @@ function error = objectiveFunction(params, qDes, wt, qMid)
     x0(1:3) = qDes; 
 
     % Simulate the system
-    [t, y] = ode23s(@(t, x) myTwolinkwithprefilter(t, x, params(2:4), params(1), qDes, params(5:7)), [0 params(1)], x0);
+    [t, y] = ode23s(@(t, x) myTwolinkwithprefilter(t, x, optimalParams(3:8), optimalParams(1:2), qDes, optimalParams(9:14), optimalParams(15:20),optimalParams(21:26)), [0 optimalParams(2)], x0);
 
     % Calculate error metric
     distto1 = min(sum((y(:, 7:9) - qDes).^2, 2) + sum((params(1) - t).^2, 2)); 
@@ -96,23 +68,35 @@ function error = objectiveFunction(params, qDes, wt, qMid)
 end
 
 % myTwolinkwithprefilter function
-function dxdt= myTwolinkwithprefilter(t, x, wn, time, qDes, zeta)
+function dxdt= myTwolinkwithprefilter(t, x, wn1,wn2 t1,t2, qDes, bj1,bj2,kj1,kj2,zeta1,zeta2)
     % zeta = 1;
-    A = [zeros(3,3) eye(3);
-        -eye(3)*diag(wn).^2  -eye(3)*2*diag(zeta)*diag(wn)];
-    B = [zeros(3,3); diag(wn).^2];
+    A1 = [zeros(3,3) eye(3);
+        -eye(3)*diag(wn1).^2  -eye(3)*2*diag(zeta1)*diag(wn1)];
+    B1 = [zeros(3,3); diag(wn1).^2];
+
+    A2 = [zeros(3,3) eye(3);
+        -eye(3)*diag(wn2).^2  -eye(3)*2*diag(zeta2)*diag(wn2)];
+    B2 = [zeros(3,3); diag(wn2).^2];
+    
 
     q   = x(7:9);
     qd  = x(10:12);
-    kj = [100 100 100];       % Spring constants
-    bj = [30 30 30];       % Damping constants
-    Kp = diag(kj);  
-    Kd = diag(bj);  
-    controller = Kp * (x(1:3) - q) + Kd * (x(4:6) - qd);
+    Kp1 = diag(kj1);  
+    Kd1 = diag(bj1);  
+    
+    Kp2 = diag(kj2);  
+    Kd2 = diag(bj2);  
+    
+    controller1 = Kp1 * (x(1:3) - q) + Kd1 * (x(4:6) - qd);
+    controller2 = Kp2 * (x(1:3) - q) + Kd2 * (x(4:6) - qd);
+
     [M, C, G] = compute_M_C_G(q(1), q(2), q(3), qd(1), qd(2), qd(3));
     % torque = Kd * (x(4:6) - qd) + Kp * (x(1:3) - q);
-    tau = M * (controller) + C * qd ;
-    qdd = M \ (tau - C * qd );
+    tau1 = M * (controller1) + C * qd ;
+    tau2 = M * (controller2) + C * qd ;
+
+    qdd1 = M \ (tau1 - C * qd );
+    qdd2 = M \ (tau2 - C * qd );
 
     % qdd = M \ ( torque - C * qd);
 
@@ -128,7 +112,7 @@ function [x, y, z] = FK(q1, q2, q3)
     z = -l1 + cos(q1) .* (l1 * cos(q2) + l2 * sin(q3));
 end
 
-function [q1, q2, q3] = IK(x, y, z)
+function Q = IK(x, y, z)
     l1 = 0.208; 
     l2 = 0.168;  
     q1 = atan2(x, z + l1);
@@ -141,10 +125,8 @@ function [q1, q2, q3] = IK(x, y, z)
 
     Alpha = acos((l1^2 + l2^2 - r^2) / (2 * l1 * l2));
     q3 = q2 + Alpha - pi/2;
+    Q = [q1, q2, q3] ;
 end
-
-
-
 
 function [M, C, G] = compute_M_C_G(theta1, theta2,theta3, dtheta1, dtheta2,dtheta3)
     % link lenghts
@@ -209,9 +191,6 @@ function [M, C, G] = compute_M_C_G(theta1, theta2,theta3, dtheta1, dtheta2,dthet
     
     G = [0 N2 N3]';
 end
-
-
-
 
 
 
