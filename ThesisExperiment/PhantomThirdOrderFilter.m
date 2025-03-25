@@ -1,5 +1,4 @@
 clear; clc;
-% close all;
 % Define desired trajectory and Middle Points
 qDes = [0.1914, -0.0445, 0.3336];
 xMid = [0.025, 0, 0.005; 
@@ -14,83 +13,87 @@ for i = 1:length(qMid)
 end
 
 % Parameters
-time = 20;  % Time
-zeta = [1 1 1];       % Prefilter Zeta
-wn = [1 1 1 ];          % Prefilter Omega     
-kj = [50 50 50];       % Spring constants
-bj = [30 30 30];       % Damping constants
-% wt = [0.5, 1e-5, 100];  % Weights [qDes, Time, qMid]
-wt = [0.4, 1e-5, 10];  % Weights [qDes, Time, qMid]
+time = 20;  % Total simulation time
+zeta = [1 1 1];       % Third-order Prefilter Damping Ratio
+wn = [1 1 1 ];        % Third-order Prefilter Natural Frequency  
+kj = [50 50 50];      % Spring constants
+bj = [30 30 30];      % Damping constants
+wt = [0.4, 1e-5, 10]; % Weights [qDes, Time, qMid]
 
-% Optimization setup
-initParams = [time wn bj kj, zeta]; % Initial guess
+% Initial parameter guess
+initParams = [time wn bj kj, zeta]; 
 
-[init_T, init_Y] = ode23s(@(t, x) myTwolinkwithprefilter(t, x, wn, time, qDes, bj, kj, zeta), [0 time], zeros(12, 1));
+[init_T, init_Y] = ode23s(@(t, x) myTwolinkwithprefilter(t, x, wn, time, qDes, bj, kj, zeta), [0 time], zeros(15, 1));
  
-% Upper and Lower Limits
+% Parameter bounds
 lb = [5   10  1  1  10 10 10   20  20  20   0.1 0.1 0.1 ];   
 ub = [10   20 20 20 40 40 40   100 100 100  3 3 3  ];  
 
 % Objective Function
 objectiveFunc = @(params) objectiveFunction(params, qDes, wt, qMid);
 
-% Run optimization
+% Optimization setup
 options = optimset('PlotFcns','optimplotfval','Display', 'off', 'TolFun', 1e-8, 'MaxIter', 400,'TolX',1e-8);
 optimalParams = fmincon(objectiveFunc, initParams, [], [], [], [], lb, ub, [], options);
 
 % Simulate with optimal parameters
-[t, y] = ode23s(@(t, x) myTwolinkwithprefilter(t, x, optimalParams(2:4), optimalParams(1), qDes, optimalParams(5:7), optimalParams(8:10),optimalParams(11:13)), [0 optimalParams(1)], zeros(12, 1));
+[t, y] = ode23s(@(t, x) myTwolinkwithprefilter(t, x, optimalParams(2:4), optimalParams(1), qDes, optimalParams(5:7), optimalParams(8:10),optimalParams(11:13)), [0 optimalParams(1)], zeros(15, 1));
 
-Plotting
+% Plotting
 disp(['Optimized Parameters: ', num2str(optimalParams)]);
 
 % Objective function
 function error = objectiveFunction(params, qDes, wt, qMid)
-    x0 = zeros(12, 1);
+    x0 = zeros(15, 1);
     x0(1:3) = qDes; 
 
     % Simulate the system
     [t, y] = ode23s(@(t, x) myTwolinkwithprefilter(t, x, params(2:4), params(1), qDes, params(5:7), params(8:10), params(11:13)), [0 params(1)], x0);
 
     % Calculate error metric
-    distto1 = min(sum((y(:, 7:9) - qDes).^2, 2) + sum((params(1) - t).^2, 2)); 
+    distto1 = min(sum((y(:, 10:12) - qDes).^2, 2) + sum((params(1) - t).^2, 2)); 
 
-    distMid = sum(arrayfun(@(i) min(sum((y(:, 7:9) - qMid(i, :)).^2, 2)), 1:size(qMid,1)));
+    distMid = sum(arrayfun(@(i) min(sum((y(:, 10:12) - qMid(i, :)).^2, 2)), 1:size(qMid,1)));
 
     error = wt(1) * distto1 + wt(2) * params(1) + wt(3) * distMid;
-
 end
 
-% myTwolinkwithprefilter function
-function dxdt= myTwolinkwithprefilter(t, x, wn, time, qDes, bj, kj,zeta)
-    % zeta = 1;
-    A = [zeros(3,3) eye(3);
-        -eye(3)*diag(wn).^2  -eye(3)*2*diag(zeta)*diag(wn)];
-    B = [zeros(3,3); diag(wn).^2];
-    
-    A = [zeros(3,3), eye(3), zeros(3,3);
-     zeros(3,3), zeros(3,3), eye(3);
-     -eye(3)*diag(wn).^3, -eye(3)*3*diag(zeta)*diag(wn).^2, -eye(3)*3*diag(zeta).^2*diag(wn)];
-     
-    B3 = [zeros(3,3);
-        zeros(3,3);
-        diag(wn).^3];
+% Third-order Prefiltered Dynamics
+% Third-order filter modifications in the `myTwolinkwithprefilter` function:
 
-    q   = x(7:9);
-    qd  = x(10:12);
+function dxdt = myTwolinkwithprefilter(t, x, wn, time, qDes, bj, kj, zeta)
+    % Define the correct size for matrix A (6x6 for the system states)
+    A = [zeros(3,3), eye(3), zeros(3,3);
+         -eye(3)*diag(wn).^3, -3*eye(3)*diag(zeta.^2).*diag(wn).^2, -3*eye(3)*diag(zeta).*diag(wn)];
+    
+    % Define matrix B (6x3)
+    B = [zeros(3,3); diag(wn).^3];
+    
+    % Extract joint positions and velocities (q = 3, qd = 3)
+    q = x(7:9);     % joint positions
+    qd = x(10:12);  % joint velocities
+    
+    % Define control gains for spring and damping
     Kp = diag(kj);  
     Kd = diag(bj);  
+    
+    % Controller: PD controller with position and velocity error
     controller = Kp * (x(1:3) - q) + Kd * (x(4:6) - qd);
+    
+    % Get the mass, Coriolis, and gravity matrices
     [M, C, G] = compute_M_C_G(q(1), q(2), q(3), qd(1), qd(2), qd(3));
-    % torque = Kd * (x(4:6) - qd) + Kp * (x(1:3) - q);
-    tau = M * (controller) + C * qd ;
-    qdd = M \ (tau - C * qd );
-
-    % qdd = M \ ( torque - C * qd);
-
-    dxdt = [A*x(1:6) + B*qDes(:); qd; qdd];
-
+    
+    % Compute joint accelerations (3x1)
+    tau = M * controller + C * qd + G;
+    qdd = M \ (tau - C * qd);
+    
+    % Return the state-space representation of the system (state derivative)
+    % A * x(1:6) gives a 6x1 vector (since A is now 6x6)
+    % B * qDes(:) gives a 6x1 vector
+    dxdt = [A * x(1:9) + B * qDes(:); qd; qdd;qdd];  % 15x1 state vector
 end
+
+
 
 function [x, y, z] = FK(q1, q2, q3)
     l1 = 0.208; 

@@ -14,13 +14,13 @@ for i = 1:length(qMid)
 end
 
 % Parameters
-time = 10;  % Time
-zeta = [1 1 3.5];       % Prefilter Zeta
+time = 20;  % Time
+zeta = [1 1 1];       % Prefilter Zeta
 wn = [1 1 1 ];          % Prefilter Omega     
 kj = [50 50 50];       % Spring constants
 bj = [30 30 30];       % Damping constants
-% wt = [0.5, 1e-5, 100];  % Weights [qDes, Time, qMid]
-wt = [0.4, 1e-5, 10];  % Weights [qDes, Time, qMid]
+wt = [0.5, 1e-5, 100];  % Weights [qDes, Time, qMid]
+% wt = [0.4, 1e-5, 10];  % Weights [qDes, Time, qMid]
 
 % Optimization setup
 initParams = [time wn bj kj, zeta]; % Initial guess
@@ -67,6 +67,14 @@ function dxdt= myTwolinkwithprefilter(t, x, wn, time, qDes, bj, kj,zeta)
     A = [zeros(3,3) eye(3);
         -eye(3)*diag(wn).^2  -eye(3)*2*diag(zeta)*diag(wn)];
     B = [zeros(3,3); diag(wn).^2];
+    
+    A3 = [zeros(3,3), eye(3), zeros(3,3);
+     zeros(3,3), zeros(3,3), eye(3);
+     -eye(3)*diag(wn).^3, -eye(3)*3*diag(zeta)*diag(wn).^2, -eye(3)*3*diag(zeta).^2*diag(wn)];
+     
+    B3 = [zeros(3,3);
+        zeros(3,3);
+        diag(wn).^3];
 
     q   = x(7:9);
     qd  = x(10:12);
