@@ -64,7 +64,7 @@ end
 function dxdt = myTwolinkwithprefilter(t, x, wn, time, qDes, bj, kj, zeta)
     % Define the correct size for matrix A (6x6 for the system states)
     A = [zeros(3,3), eye(3), zeros(3,3);
-         -eye(3)*diag(wn).^3, -3*eye(3)*diag(zeta.^2).*diag(wn).^2, -3*eye(3)*diag(zeta).*diag(wn)];
+         -eye(3)*diag(wn)^3, -3*eye(3)*diag(zeta^2)*diag(wn)^2, -3*eye(3)*diag(zeta)*diag(wn)];
     
     % Define matrix B (6x3)
     B = [zeros(3,3); diag(wn).^3];
