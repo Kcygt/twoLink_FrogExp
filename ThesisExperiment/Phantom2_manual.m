@@ -1,5 +1,6 @@
 clear; clc;
-% close all;
+close all;
+
 % Define desired trajectory and Middle Points
 qDes = [0.1914, -0.0445, 0.3336];
 xMid = zeros(4,3);
@@ -17,21 +18,21 @@ qMid(4,:) = IK(xMid(4,1), xMid(4,2), xMid(4,3));
 
 % Parameters
 num_stages = length(qMid) + 1; % Number of different parameter sets
-
-time_stages = [0.85, 1.35, 2.75, 4, 5 ];
+K = 1;
+time_stages = [0.8, 1.2, 2.25, 3.75, 5.05 ]/K;
 tspan = [0, time_stages(end)];
 
-zeta = [1 1 1; 0.2 1 0.5;   .4 1 0.3;    .1 1 .1;   .1 1 .1]; 
-wn   = [1 1 1; 1   1 2;       10 1 1;      .1 1 5;   1 1 1];
+zeta = [.5 1 1; 0.8 1 0.2;     1 1 5;     4 1 .7;  1 1 1]; 
+wn   = K*[1  1 1; 1   1   2;     1 1 1.5;      1 1  1;   4 1 4];
 kj = [60 50 40; 50 50 50; 50 50 50;50 50 50;50 50 50];
 bj = [30 30 30; 30 30 30; 30 30 30;30 30 30;30 30 30];
 
 wt = [0.5, 1e-5, 200];  % Weights [qDes, Time, qMid]
 
-[init_T, init_Y] = ode45(@(t, x) myTwolinkwithprefilter(t, x, wn, zeta, time_stages, qDes, bj, kj), tspan,  zeros(12, 1));
+[tt, yy] = ode45(@(t, x) myTwolinkwithprefilter(t, x, wn, zeta, time_stages, qDes, bj, kj), tspan,  zeros(12, 1));
 
 %%% Plotting
-[x,y,z] = FK(init_Y(:,7),init_Y(:,8),init_Y(:,9));
+[x,y,z] = FK(yy(:,7),yy(:,8),yy(:,9));
 figure(1); hold on; grid on;
 plot(x,z)
 plot(xMid(1,1),xMid(1,3),'*')
@@ -40,93 +41,82 @@ plot(xMid(3,1),xMid(3,3),'*')
 plot(xMid(4,1),xMid(4,3),'*')
 
 plot(0.05,0.05,'o')
-%%%%
-% 
+%%%
+
+
+
+
 figure(2); hold on; grid on;
-plot(init_T,init_Y(:,1))
-plot(init_T,init_Y(:,3))
+plot(tt, yy(:,1))
+plot(tt, yy(:,3))
+xlabel('Time (s)')
+ylabel('Joint Position (rad)')
+legend('Joint 1','Joint 3')
+
+% Plot vertical lines
+for t = time_stages
+    xline(t, '--k', 'LineWidth', 1.5); % Dashed black line
+end
+
+
+figure(3); hold on;
+colors = lines(length(time_stages)); % Generate distinct colors
+
+for jj = 1:length(time_stages)
+    if jj == 1
+        idx = (tt >= 0) & (tt < time_stages(jj)); % First stage
+    else
+        idx = (tt >= time_stages(jj-1)) & (tt < time_stages(jj)); % Subsequent stages
+    end
+    plot(x(idx), z(idx), '.','Color', colors(jj, :), 'LineWidth', 1.5);
+end
+plot(xMid(1,1),xMid(1,3),'*')
+plot(xMid(2,1),xMid(2,3),'*')
+plot(xMid(3,1),xMid(3,3),'*')
+plot(xMid(4,1),xMid(4,3),'*')
+hold off;
+legend(arrayfun(@(jj) sprintf('Stage %d', jj), 1:length(time_stages), 'UniformOutput', false));
+xlabel('x');
+ylabel('z');
+title('Plot of different time stages');
+grid on;
+
+figure(4); hold on
+plot(tt,yy(:,10),tt,yy(:,12))
+
 
 % myTwolinkwithprefilter function
 function dxdt= myTwolinkwithprefilter(t, x, wn, zeta, t_st, qDes, bj, kj)
-    % zeta = 1;
-
-    A1 = [zeros(3,3) eye(3);
-        -eye(3)*diag(wn(1,:)).^2  -eye(3)*2*diag(zeta(1,:))*diag(wn(1,:))];
-    B1 = [zeros(3,3); diag(wn(1,:)).^2];
-
-    A2 = [zeros(3,3) eye(3);
-        -eye(3)*diag(wn(2,:)).^2  -eye(3)*2*diag(zeta(2,:))*diag(wn(2,:))];
-    B2 = [zeros(3,3); diag(wn(2,:)).^2];
-
-
-    A3 = [zeros(3,3) eye(3);
-        -eye(3)*diag(wn(3,:)).^2  -eye(3)*2*diag(zeta(3,:))*diag(wn(3,:))];
-    B3 = [zeros(3,3); diag(wn(3,:)).^2];
-
+    for i = 1:length(wn)
+        W = diag(wn(i,:));
+        Z = diag(zeta(i,:));
+        Kp{i} = diag(kj(i,:));
+        Kd{i} = diag(bj(i,:));
+        q = x(7:9);
+        qd = x(10:12);
     
-    A4 = [zeros(3,3) eye(3);
-        -eye(3)*diag(wn(4,:)).^2  -eye(3)*2*diag(zeta(4,:))*diag(wn(4,:))];
-    B4 = [zeros(3,3); diag(wn(4,:)).^2];
-
-    A5 = [zeros(3,3) eye(3);
-        -eye(3)*diag(wn(5,:)).^2  -eye(3)*2*diag(zeta(5,:))*diag(wn(5,:))];
-    B5 = [zeros(3,3); diag(wn(5,:)).^2];
-
-    q   = x(7:9);
-    qd  = x(10:12);
-    Kp1 = diag(kj(1,:));  
-    Kd1 = diag(bj(1,:));  
-    
-    Kp2 = diag(kj(2,:));  
-    Kd2 = diag(bj(2,:));  
-    
-    Kp3 = diag(kj(3,:));  
-    Kd3 = diag(bj(3,:));  
-    
-    Kp4 = diag(kj(4,:));  
-    Kd4 = diag(bj(4,:)); 
-
-    Kp5 = diag(kj(5,:));  
-    Kd5 = diag(bj(5,:)); 
-
-    controller1 = Kp1 * (x(1:3) - q) + Kd1 * (x(4:6) - qd);
-    controller2 = Kp2 * (x(1:3) - q) + Kd2 * (x(4:6) - qd);
-    controller3 = Kp3 * (x(1:3) - q) + Kd3 * (x(4:6) - qd);
-    controller4 = Kp4 * (x(1:3) - q) + Kd4 * (x(4:6) - qd);
-    controller5 = Kp5 * (x(1:3) - q) + Kd5 * (x(4:6) - qd);
+        A{i} = [zeros(3), eye(3); -W.^2, -2*Z*W];
+        B{i} = [zeros(3); W.^2];
+        
+        controller{i} = Kp{i} * (x(1:3) - q) + Kd{i} * (x(4:6) - qd);
+        [M, C, ~] = compute_M_C_G(q(1), q(2), q(3), qd(1), qd(2), qd(3));
+        
+        tau{i} = M * controller{i} + C * qd;
+        qdd{i} = M \ (tau{i} - C * qd);
+        output{i} = [A{i} * x(1:6) + B{i} * qDes(:); qd; qdd{i}];
+    end
 
 
-    [M, C, G] = compute_M_C_G(q(1), q(2), q(3), qd(1), qd(2), qd(3));
-
-    tau1 = M * (controller1) + C * qd ;
-    tau2 = M * (controller2) + C * qd ;
-    tau3 = M * (controller3) + C * qd ;
-    tau4 = M * (controller4) + C * qd ;
-    tau5 = M * (controller5) + C * qd ;
-
-    qdd1 = M \ (tau1 - C * qd );
-    qdd2 = M \ (tau2 - C * qd );
-    qdd3 = M \ (tau3 - C * qd );
-    qdd4 = M \ (tau4 - C * qd );
-    qdd5 = M \ (tau4 - C * qd );
-
-    % qdd = M \ ( torque - C * qd);
-    output1 = [A1*x(1:6) + B1*qDes(:); qd; qdd1];
-    output2 = [A2*x(1:6) + B2*qDes(:); qd; qdd2];
-    output3 = [A3*x(1:6) + B3*qDes(:); qd; qdd3];
-    output4 = [A4*x(1:6) + B4*qDes(:); qd; qdd4];
-    output5 = [A4*x(1:6) + B4*qDes(:); qd; qdd5];
-    
     if t < t_st(1)
-        dxdt = output1;
+        dxdt = output{1};
     elseif t_st(1) <= t && t < t_st(2)
-        dxdt = output2;
+        dxdt = output{2};
     elseif t_st(2) <= t && t < t_st(3)
-        dxdt = output3;
+        dxdt = output{3};
     elseif t_st(3) <= t && t < t_st(4)
-        dxdt = output4;
+        dxdt = output{4};
     else
-        dxdt = output5;
+        dxdt = output{5};
     end
 
 

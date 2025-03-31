@@ -2,54 +2,46 @@ clear; clc;
 % close all;
 % Define desired trajectory and Middle Points
 qDes = [0.1914, -0.0445, 0.3336];
-xMid = zeros(2,3);
+xMid = zeros(4,3);
 xMid(1,:) = [0.01, 0, 0.01 ];
-xMid(2,:) = [0.03, 0, 0.06 ];
+xMid(2,:) = [0.02, 0, 0.03 ];
+xMid(3,:) = [0.0365, 0, 0.034];
+xMid(4,:) = [0.04, 0, 0.045 ];
 
-qMid = zeros(2,3);
+qMid = zeros(4,3);
 qMid(1,:) = IK(xMid(1,1), xMid(1,2), xMid(1,3));
 qMid(2,:) = IK(xMid(2,1), xMid(2,2), xMid(2,3));
-
-
+qMid(3,:) = IK(xMid(3,1), xMid(3,2), xMid(3,3));
+qMid(4,:) = IK(xMid(4,1), xMid(4,2), xMid(4,3));
 
 % Parameters
-time = 30;  % Time
-t1 = 0.7;
-t2 = 6;
-t3 = 9;
-zeta1 = [1 1 1];       % Prefilter Zeta
-zeta2 = [.3 1 .5];       % Prefilter Zeta
-zeta3 = [.9 1 .9];       % Prefilter Zeta
+num_stages = length(qMid) + 1; % Number of different parameter sets
 
-wn1 = [1 1 1 ];          % Prefilter Omega     
-wn2 = [11 1 1 ];          % Prefilter Omega     
-wn3 = [12 1 1 ];          % Prefilter Omega     
+ttime = [0.8, 1.2, 2.25, 3.75, 5.05 ];
+tspan = [0, ttime(end)];
 
-kj1 = [60 50 40];       % Spring constants
-bj1 = [30 30 30];       % Damping constants
-kj2 = [50 50 50];       % Spring constants
-bj2 = [30 30 30];       % Damping constants
-kj3 = [50 50 50];       % Spring constants
-bj3 = [30 30 30];       % Damping constants
+zeta = [.5 1 1;  0.8 1 0.2;    1 1 5;        4 1 .7;   1 1 1]; 
+wn   = [1  1 1;  1   1   2;    1 1 1.5;      1 1  1;   4 1 4];
+kj = [60 50 40; 50 50 50; 50 50 50;50 50 50;50 50 50];
+bj = [30 30 30; 30 30 30; 30 30 30;30 30 30;30 30 30];
 
-wt = [0.5, 1e-5, 200];  % Weights [qDes, Time, qMid]
+% weights
+wt = [0.5, 1e-5, 200];  %  [qDes, Time, qMid]
 
 % Optimization setup
-initParams = [t1 t2 t3 wn1 wn2 wn3 bj1 bj2 bj3 kj1 kj2 kj3 zeta1 zeta2 zeta3]; % Initial guess
+initParams = [ttime, reshape(wn', 1, []), reshape(bj', 1, []), reshape(kj', 1, []), reshape(zeta', 1, [])];
 
-[init_T, init_Y] = ode23s(@(t, x) myTwolinkwithprefilter(t, x, wn1,wn2,wn3 ,t1,t2,t3, qDes, bj1,bj2,bj3, kj1,kj2,kj3, zeta1,zeta2,zeta3), [0 t3], zeros(12, 1));
-
-%%% Plotting
-% [x,y,z] = FK(init_Y(:,7),init_Y(:,8),init_Y(:,9));
-% figure(1); hold on; grid on;
-% plot(x,z)
-% plot(xMid(1,1),xMid(1,3),'*')
-% plot(xMid(2,1),xMid(2,3),'*')
-
-%%%%
-% Upper and Lower Limits
-lb = [0  0  0     10  1  1   11  1  1    12 1 1          10 15 16  10 10 10 10 10 10        20  20  20  20  20  20  20  20  20       0 0 0 0 0 0 0 0 0 ];   
-ub = [10 10 10    20 20 20   20 20 20    20 20 20        40 40 40  40 40 40 40 40 40        100 100 100 100 100 100 100 100 100      1 1 1 1 1 1 1 1 1];  
+% Lower and Upper Limits
+lb = [0  0  0  0  0   ...                                % time 
+      1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 ...                  % wn
+      .1 .1 .1 .1 .1 .1 .1 .1 .1 .1 .1 .1 .1 .1 .1  ...  % zeta
+      30 30 30 30 30 30 30 30 30 30 30 30 30 30 30  ...  % Kp   
+      10 10 10 10 10 10 10 10 10 10 10 10 10 10 10  ];   % Kd
+ub = [10 10 10 10 10 ...                                     % time
+      5 5 5 5 5 5 5 5 5 5 5 5 5 5 5   ...                    % wn
+      5  5  5  5  5  5  5  5  5  5  5  5  5  5  5 ...        % zeta
+      80 80 80 80 80 80 80 80 80 80 80 80 80 80 80 ...       % Kp
+      40 40 40 40 40 40 40 40 40 40 40 40 40 40 40  ];       % Kd
 
 % Objective Function
 objectiveFunc = @(params) objectiveFunction(params, qDes, wt, qMid);
@@ -58,13 +50,22 @@ objectiveFunc = @(params) objectiveFunction(params, qDes, wt, qMid);
 options = optimset('PlotFcns','optimplotfval','Display', 'off', 'TolFun', 1e-8, 'MaxIter', 400,'TolX',1e-8);
 optimalParams = fmincon(objectiveFunc, initParams, [], [], [], [], lb, ub, [], options);
 
-% Simulate with optimal parameters
-[t, y] = ode23s(@(t, x) myTwolinkwithprefilter(t, x, optimalParams(4:6),optimalParams(7:9),optimalParams(10:12), optimalParams(1),optimalParams(2),optimalParams(3), ...
-    qDes, optimalParams(13:15),optimalParams(16:18),optimalParams(19:21),optimalParams(22:24),optimalParams(25:27),optimalParams(28:30)...
-    ,optimalParams(31:33),optimalParams(34:36),optimalParams(37:39)), [0 optimalParams(3)], zeros(12, 1));
 
-Plotting
-disp(['Optimized Parameters: ', num2str(optimalParams)]);
+% Simulate with optimal parameters
+[t, y] = ode23s(@(t, x) myTwolinkwithprefilter(t, x,  optimalParams(1:5), optimalParams(6:20),qDes,optimalParams(21:35), optimalParams(36:50),optimalParams(51:65)), [0 optimalParams(5)], zeros(12, 1));
+
+
+%%% Plotting
+[x,yy,z] = FK(init_Y(:,7),init_Y(:,8),init_Y(:,9));
+figure(1); hold on; grid on;
+plot(x,z)
+plot(xMid(1,1),xMid(1,3),'*')
+plot(xMid(2,1),xMid(2,3),'*')
+plot(xMid(3,1),xMid(3,3),'*')
+plot(xMid(4,1),xMid(4,3),'*')
+
+plot(0.05,0.05,'o')
+
 
 % Objective function
 function error = objectiveFunction(params, qDes, wt, qMid)
@@ -72,72 +73,50 @@ function error = objectiveFunction(params, qDes, wt, qMid)
     x0(1:3) = qDes; 
 
     % Simulate the system
-    [t, y] = ode23s(@(t, x) myTwolinkwithprefilter(t, x, params(4:6),params(7:9),params(10:12), params(1),params(2),params(3), ...
-    qDes, params(13:15),params(16:18),params(19:21),params(22:24),params(25:27),params(28:30)...
-    ,params(31:33),params(34:36),params(37:39)), [0 params(2)], x0);
+    [t, y] = ode23s(@(t, x) myTwolinkwithprefilter(t, x, qDes,  params(1:5), params(6:20),params(21:35), params(36:50),params(51:65)), [0 params(5)], x0);
 
     % Calculate error metric
     distto1 = min(sum((y(:, 7:9) - qDes).^2, 2) + sum((params(1) - t).^2, 2)); 
 
     distMid = sum(arrayfun(@(i) min(sum((y(:, 7:9) - qMid(i, :)).^2, 2)), 1:size(qMid,1)));
 
-    error = wt(1) * distto1 + wt(2) * params(3) + wt(3) * distMid;
+    error = wt(1) * distto1 + wt(2) * params(1) + wt(3) * distMid;
 
 end
 
+
 % myTwolinkwithprefilter function
-function dxdt= myTwolinkwithprefilter(t, x, wn1,wn2,wn3, t1,t2, t3, qDes,  bj1,bj2,bj3,   kj1,kj2,kj3,   zeta1,zeta2,zeta3)
-    % zeta = 1;
-
-    A1 = [zeros(3,3) eye(3);
-        -eye(3)*diag(wn1).^2  -eye(3)*2*diag(zeta1)*diag(wn1)];
-    B1 = [zeros(3,3); diag(wn1).^2];
-
-    A2 = [zeros(3,3) eye(3);
-        -eye(3)*diag(wn2).^2  -eye(3)*2*diag(zeta2)*diag(wn2)];
-    B2 = [zeros(3,3); diag(wn2).^2];
-
-    A3 = [zeros(3,3) eye(3);
-        -eye(3)*diag(wn3).^2  -eye(3)*2*diag(zeta3)*diag(wn3)];
-    B3 = [zeros(3,3); diag(wn3).^2];
+function dxdt= myTwolinkwithprefilter(t, x, wn, zeta, t_st, qDes, bj, kj)
+    for i = 1:length(wn)
+        W = diag(wn(i,:));
+        Z = diag(zeta(i,:));
+        Kp{i} = diag(kj(i,:));
+        Kd{i} = diag(bj(i,:));
+        q = x(7:9);
+        qd = x(10:12);
     
+        A{i} = [zeros(3), eye(3); -W.^2, -2*Z*W];
+        B{i} = [zeros(3); W.^2];
+        
+        controller{i} = Kp{i} * (x(1:3) - q) + Kd{i} * (x(4:6) - qd);
+        [M, C, ~] = compute_M_C_G(q(1), q(2), q(3), qd(1), qd(2), qd(3));
+        
+        tau{i} = M * controller{i} + C * qd;
+        qdd{i} = M \ (tau{i} - C * qd);
+        output{i} = [A{i} * x(1:6) + B{i} * qDes(:); qd; qdd{i}];
+    end
 
-    q   = x(7:9);
-    qd  = x(10:12);
-    Kp1 = diag(kj1);  
-    Kd1 = diag(bj1);  
-    
-    Kp2 = diag(kj2);  
-    Kd2 = diag(bj2);  
 
-    Kp3 = diag(kj3);  
-    Kd3 = diag(bj3);  
-    
-    controller1 = Kp1 * (x(1:3) - q) + Kd1 * (x(4:6) - qd);
-    controller2 = Kp2 * (x(1:3) - q) + Kd2 * (x(4:6) - qd);
-    controller3 = Kp3 * (x(1:3) - q) + Kd3 * (x(4:6) - qd);
-
-    [M, C, G] = compute_M_C_G(q(1), q(2), q(3), qd(1), qd(2), qd(3));
-
-    tau1 = M * (controller1) + C * qd ;
-    tau2 = M * (controller2) + C * qd ;
-    tau3 = M * (controller3) + C * qd ;
-
-    qdd1 = M \ (tau1 - C * qd );
-    qdd2 = M \ (tau2 - C * qd );
-    qdd3 = M \ (tau3 - C * qd );
-
-    % qdd = M \ ( torque - C * qd);
-    output1 = [A1*x(1:6) + B1*qDes(:); qd; qdd1];
-    output2 = [A2*x(1:6) + B2*qDes(:); qd; qdd2];
-    output3 = [A3*x(1:6) + B3*qDes(:); qd; qdd3];
-    
-    if t < t1
-        dxdt = output1;
-    elseif t1 < t && t < t2
-        dxdt = output2;
+    if t < t_st(1)
+        dxdt = output{1};
+    elseif t_st(1) <= t && t < t_st(2)
+        dxdt = output{2};
+    elseif t_st(2) <= t && t < t_st(3)
+        dxdt = output{3};
+    elseif t_st(3) <= t && t < t_st(4)
+        dxdt = output{4};
     else
-        dxdt = output3;
+        dxdt = output{5};
     end
 
 

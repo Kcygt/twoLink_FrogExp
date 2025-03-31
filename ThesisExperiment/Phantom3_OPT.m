@@ -1,44 +1,51 @@
-clear; clc; close all;
-% close all;
+clear; clc;
+close all;
+
 % Define desired trajectory and Middle Points
 qDes = [0.1914, -0.0445, 0.3336];
+xMid = zeros(4,3);
+xMid(1,:) = [0.01, 0, 0.01 ];
+xMid(2,:) = [0.02, 0, 0.03 ];
+xMid(3,:) = [0.0365, 0, 0.034];
+xMid(4,:) = [0.04, 0, 0.045 ];
 
-xMid = zeros(5,3);
-xMid(1,:) = [0.025, 0, 0.005];
-xMid(2,:) = [0.03,  0, 0.030];
-xMid(3,:) = [0.035, 0, 0.035];
-xMid(4,:) = [0.04,  0, 0.02];
-xMid(5,:) = [0.045, 0, 0.025];
+qMid = zeros(4,3);
+qMid(1,:) = IK(xMid(1,1), xMid(1,2), xMid(1,3));
+qMid(2,:) = IK(xMid(2,1), xMid(2,2), xMid(2,3));
+qMid(3,:) = IK(xMid(3,1), xMid(3,2), xMid(3,3));
+qMid(4,:) = IK(xMid(4,1), xMid(4,2), xMid(4,3));
 
-qMid = zeros(5,3);
-[qMid(1,1),qMid(1,2),qMid(1,3)] = IK(xMid(1,1),xMid(1,2),xMid(1,3));
-[qMid(2,1),qMid(2,2),qMid(2,3)] = IK(xMid(2,1),xMid(2,2),xMid(2,3));
-[qMid(3,1),qMid(3,2),qMid(3,3)] = IK(xMid(3,1),xMid(3,2),xMid(3,3));
-[qMid(4,1),qMid(4,2),qMid(4,3)] = IK(xMid(4,1),xMid(4,2),xMid(4,3));
-[qMid(5,1),qMid(5,2),qMid(5,3)] = IK(xMid(5,1),xMid(5,2),xMid(5,3));
 
 % Parameters
-time = 20;  % Time
-zeta = [.4 1 3];
-wn = [10 1 1];          % Prefilter Omega     
+num_stages = length(qMid) + 1; % Number of different parameter sets
 
-% wt = [0.5, 1e-5, 100];  % Weights [qDes, Time, qMid]
-wt = [0.4, 1e-6, 50];  % Weights [qDes, Time, qMid]
+ttime = [0.8, 1.2, 2.25, 3.75, 5.05 ];
+tspan = [0, ttime(end)];
+
+zeta = [.5 1 1; 0.8 1 0.2;     1 1 5;     4 1 .7;  1 1 1]; 
+wn   = [1  1 1; 1   1   2;     1 1 1.5;      1 1  1;   4 1 4];
+
+kj = [60 50 40; 50 50 50; 50 50 50;50 50 50;50 50 50];
+bj = [30 30 30; 30 30 30; 30 30 30;30 30 30;30 30 30];
+
+% weights
+wt = [0.5, 1e-5, 200];  %  [qDes, Time, qMid]
 
 % Optimization setup
-initParams = [time wn zeta]; % Initial guess
+initParams = [ttime, reshape(wn', 1, []), reshape(bj', 1, []), reshape(kj', 1, []), reshape(zeta', 1, [])];
 
-[init_T, init_Y] = ode23s(@(t, x) myTwolinkwithprefilter(t, x, wn, time, qDes, zeta), [0 time], zeros(12, 1));
-[xInit, yInit, zInit] = FK(init_Y(:,7), init_Y(:,8), init_Y(:,9));
-[xD, yD, zD] = FK(init_Y(:,1), init_Y(:,2), init_Y(:,3));
- 
-% figure(1); hold on; grid on;
-% plot(xInit,zInit,'-')
-% plot(xMid(:,1),xMid(:,3),'*')
+% Lower and Upper Limits
+lb = [0  0  0  0  0   ...                                % time 
+      1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 ...                  % wn
+      .1 .1 .1 .1 .1 .1 .1 .1 .1 .1 .1 .1 .1 .1 .1  ...  % zeta
+      30 30 30 30 30 30 30 30 30 30 30 30 30 30 30  ...  % Kp   
+      10 10 10 10 10 10 10 10 10 10 10 10 10 10 10  ];   % Kd
+ub = [10 10 10 10 10 ...                                     % time
+      5 5 5 5 5 5 5 5 5 5 5 5 5 5 5   ...                    % wn
+      5  5  5  5  5  5  5  5  5  5  5  5  5  5  5 ...        % zeta
+      80 80 80 80 80 80 80 80 80 80 80 80 80 80 80 ...       % Kp
+      40 40 40 40 40 40 40 40 40 40 40 40 40 40 40  ];       % Kd
 
-% Lower and upper boundaries 
-lb = [1   20  1  1   0.1 0.1 0.1 ];   
-ub = [10  40 20 20   40  40  40  ];  
 
 % Objective Function
 objectiveFunc = @(params) objectiveFunction(params, qDes, wt, qMid);
@@ -47,36 +54,58 @@ objectiveFunc = @(params) objectiveFunction(params, qDes, wt, qMid);
 options = optimset('PlotFcns','optimplotfval','Display', 'off', 'TolFun', 1e-8, 'MaxIter', 400,'TolX',1e-8);
 optimalParams = fmincon(objectiveFunc, initParams, [], [], [], [], lb, ub, [], options);
 
+
+
 % Simulate with optimal parameters
-[t, y] = ode23s(@(t, x) myTwolinkwithprefilter(t, x, optimalParams(2:4), optimalParams(1), qDes, optimalParams(5:7)), [0 optimalParams(1)], zeros(12, 1));
+[t, y] = ode23s(@(t, x) myTwolinkwithprefilter(t, x, optimalParams(6:20), optimalParams(1:5), qDes, optimalParams(21:35), optimalParams(36:50),optimalParams(51:65)), [0 optimalParams(5)], zeros(12, 1));
 
-% Output
-[xAct, yAct, zAct] = FK(y(:,7), y(:,8), y(:,9));
-[xDes, yDes, zDes] = FK(qDes(1), qDes(2), qDes(3));
-% torque = bj .* (y(10:12) - y(4:6)) + Kj .* (y(7:9) - y(1:3));
-% Plotting
-figure; hold on; grid on;
-plot(xInit, zInit, '-.');
-plot(xAct, zAct, '-');
-plot(xDes, zDes, 'o');
-plot(xMid(:,1),xMid(:,3),'*')
-xlabel('X axis'); ylabel('Z axis');
-legend('Initial', 'Optimized', 'Desired')
-title('Cartesian Trajectory Tracking');
+%%% Plotting
+[x,y,z] = FK(yy(:,7),yy(:,8),yy(:,9));
+figure(1); hold on; grid on;
+plot(x,z)
+plot(xMid(1,1),xMid(1,3),'*')
+plot(xMid(2,1),xMid(2,3),'*')
+plot(xMid(3,1),xMid(3,3),'*')
+plot(xMid(4,1),xMid(4,3),'*')
+
+plot(0.05,0.05,'o')
+%%%
 
 
-% figure(2); hold on; grid on;
-% plot3(xInit, yInit, zInit, '-.');
-% plot3(xAct, yAct, zAct, '-');
-% plot3(xDes, yDes,zDes, 'o');
-% plot3(xMid(:,1),xMid(:,2),xMid(:,3),'*')
-% xlabel('X axis'); ylabel('Y axis'); zlabel('Z axis')
-% legend('Initial', 'Optimized', 'Desired')
-% title('Cartesian Trajectory Tracking');
-% view(3)
 
 
-disp(['Optimized Parameters: ', num2str(optimalParams)]);
+figure(2); hold on; grid on;
+plot(tt, yy(:,1))
+plot(tt, yy(:,3))
+xlabel('Time (s)')
+ylabel('Joint Position (rad)')
+legend('Joint 1','Joint 3')
+
+% Plot vertical lines
+for t = time_stages
+    xline(t, '--k', 'LineWidth', 1.5); % Dashed black line
+end
+
+
+figure(3); hold on;
+colors = lines(length(time_stages)); % Generate distinct colors
+
+for jj = 1:length(time_stages)
+    if jj == 1
+        idx = (tt >= 0) & (tt < time_stages(jj)); % First stage
+    else
+        idx = (tt >= time_stages(jj-1)) & (tt < time_stages(jj)); % Subsequent stages
+    end
+    plot(x(idx), z(idx), '-','Color', colors(jj, :), 'LineWidth', 1.5);
+end
+
+hold off;
+legend(arrayfun(@(jj) sprintf('Stage %d', jj), 1:length(time_stages), 'UniformOutput', false));
+xlabel('x');
+ylabel('z');
+title('Plot of different time stages');
+grid on;
+
 
 % Objective function
 function error = objectiveFunction(params, qDes, wt, qMid)
@@ -84,7 +113,7 @@ function error = objectiveFunction(params, qDes, wt, qMid)
     x0(1:3) = qDes; 
 
     % Simulate the system
-    [t, y] = ode23s(@(t, x) myTwolinkwithprefilter(t, x, params(2:4), params(1), qDes, params(5:7)), [0 params(1)], x0);
+    [t, y] = ode23s(@(t, x) myTwolinkwithprefilter(t, x, params(2:4), params(1), qDes, params(5:7), params(8:10), params(11:13)), [0 params(1)], x0);
 
     % Calculate error metric
     distto1 = min(sum((y(:, 7:9) - qDes).^2, 2) + sum((params(1) - t).^2, 2)); 
@@ -95,28 +124,41 @@ function error = objectiveFunction(params, qDes, wt, qMid)
 
 end
 
+
 % myTwolinkwithprefilter function
-function dxdt= myTwolinkwithprefilter(t, x, wn, time, qDes, zeta)
-    % zeta = 1;
-    A = [zeros(3,3) eye(3);
-        -eye(3)*diag(wn).^2  -eye(3)*2*diag(zeta)*diag(wn)];
-    B = [zeros(3,3); diag(wn).^2];
+function dxdt= myTwolinkwithprefilter(t, x, wn, zeta, t_st, qDes, bj, kj)
+    for i = 1:length(wn)
+        W = diag(wn(i,:));
+        Z = diag(zeta(i,:));
+        Kp{i} = diag(kj(i,:));
+        Kd{i} = diag(bj(i,:));
+        q = x(7:9);
+        qd = x(10:12);
+    
+        A{i} = [zeros(3), eye(3); -W.^2, -2*Z*W];
+        B{i} = [zeros(3); W.^2];
+        
+        controller{i} = Kp{i} * (x(1:3) - q) + Kd{i} * (x(4:6) - qd);
+        [M, C, ~] = compute_M_C_G(q(1), q(2), q(3), qd(1), qd(2), qd(3));
+        
+        tau{i} = M * controller{i} + C * qd;
+        qdd{i} = M \ (tau{i} - C * qd);
+        output{i} = [A{i} * x(1:6) + B{i} * qDes(:); qd; qdd{i}];
+    end
 
-    q   = x(7:9);
-    qd  = x(10:12);
-    kj = [100 100 100];       % Spring constants
-    bj = [30 30 30];       % Damping constants
-    Kp = diag(kj);  
-    Kd = diag(bj);  
-    controller = Kp * (x(1:3) - q) + Kd * (x(4:6) - qd);
-    [M, C, G] = compute_M_C_G(q(1), q(2), q(3), qd(1), qd(2), qd(3));
-    % torque = Kd * (x(4:6) - qd) + Kp * (x(1:3) - q);
-    tau = M * (controller) + C * qd ;
-    qdd = M \ (tau - C * qd );
 
-    % qdd = M \ ( torque - C * qd);
+    if t < t_st(1)
+        dxdt = output{1};
+    elseif t_st(1) <= t && t < t_st(2)
+        dxdt = output{2};
+    elseif t_st(2) <= t && t < t_st(3)
+        dxdt = output{3};
+    elseif t_st(3) <= t && t < t_st(4)
+        dxdt = output{4};
+    else
+        dxdt = output{5};
+    end
 
-    dxdt = [A*x(1:6) + B*qDes(:); qd; qdd];
 
 end
 
@@ -128,7 +170,7 @@ function [x, y, z] = FK(q1, q2, q3)
     z = -l1 + cos(q1) .* (l1 * cos(q2) + l2 * sin(q3));
 end
 
-function [q1, q2, q3] = IK(x, y, z)
+function Q = IK(x, y, z)
     l1 = 0.208; 
     l2 = 0.168;  
     q1 = atan2(x, z + l1);
@@ -141,10 +183,8 @@ function [q1, q2, q3] = IK(x, y, z)
 
     Alpha = acos((l1^2 + l2^2 - r^2) / (2 * l1 * l2));
     q3 = q2 + Alpha - pi/2;
+    Q = [q1, q2, q3] ;
 end
-
-
-
 
 function [M, C, G] = compute_M_C_G(theta1, theta2,theta3, dtheta1, dtheta2,dtheta3)
     % link lenghts
@@ -209,9 +249,6 @@ function [M, C, G] = compute_M_C_G(theta1, theta2,theta3, dtheta1, dtheta2,dthet
     
     G = [0 N2 N3]';
 end
-
-
-
 
 
 

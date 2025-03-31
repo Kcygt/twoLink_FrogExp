@@ -1,5 +1,6 @@
 clear; clc;
-% close all;
+close all;
+
 % Define desired trajectory and Middle Points
 qDes = [0.1914, -0.0445, 0.3336];
 xMid = zeros(4,3);
@@ -17,21 +18,26 @@ qMid(4,:) = IK(xMid(4,1), xMid(4,2), xMid(4,3));
 
 % Parameters
 num_stages = length(qMid) + 1; % Number of different parameter sets
-
-time_stages = [0.85, 1.35, 3.85,4.95,6 ];
+K = 1;
+time_stages = [0.8, 1.2, 2.25, 3.75, 5.05 ]/K;
 tspan = [0, time_stages(end)];
 
-zeta = [1 1 1; 0.2 1 0.5;    .6 1 0.8;     0.01 1 .01;  1 1 1]; 
-wn   = [1 1 1; 1   1  2;     10 1 0.2;     1 1  0.5;   1 1 1];
+zeta = [.5 1 1; 0.8 1 0.2;     1 1 1;     1 1 .7;  1 1 1]; 
+wn   = K*[1  1 1; 1   1   2;     1 1 1.5;      1 1  1;   4 1 4];
 kj = [60 50 40; 50 50 50; 50 50 50;50 50 50;50 50 50];
 bj = [30 30 30; 30 30 30; 30 30 30;30 30 30;30 30 30];
 
 wt = [0.5, 1e-5, 200];  % Weights [qDes, Time, qMid]
 
-[init_T, init_Y] = ode45(@(t, x) myTwolinkwithprefilter(t, x, wn, zeta, time_stages, qDes, bj, kj), tspan,  zeros(12, 1));
+[tt, yy] = ode45(@(t, x) myTwolinkwithprefilter(t, x, wn, zeta, time_stages, qDes, bj, kj), tspan,  zeros(12, 1));
+
+ttintp=0:0.1:max(tt); % mid value is 'sample time'
+yyintp=interp1(tt,yy,ttintp);
 
 %%% Plotting
-[x,y,z] = FK(init_Y(:,7),init_Y(:,8),init_Y(:,9));
+[x,y,z] = FK(yy(:,7),yy(:,8),yy(:,9));
+[xip,yip,zip] = FK(yyintp(:,7),yyintp(:,8),yyintp(:,9));
+
 figure(1); hold on; grid on;
 plot(x,z)
 plot(xMid(1,1),xMid(1,3),'*')
@@ -40,11 +46,53 @@ plot(xMid(3,1),xMid(3,3),'*')
 plot(xMid(4,1),xMid(4,3),'*')
 
 plot(0.05,0.05,'o')
-%%%%
-% 
-% figure(2); hold on; grid on;
-% plot(init_T,init_Y(:,1))
-% plot(init_T,init_Y(:,3))
+%%%
+
+
+
+
+figure(2); hold on; grid on;
+plot(tt, yy(:,1))
+plot(tt, yy(:,3))
+xlabel('Time (s)')
+ylabel('Joint Position (rad)')
+legend('Joint 1','Joint 3')
+
+% Plot vertical lines
+for t = time_stages
+    xline(t, '--k', 'LineWidth', 1.5); % Dashed black line
+end
+
+
+figure(3); hold on;
+colors = lines(length(time_stages)); % Generate distinct colors
+plot(xMid(1,1),xMid(1,3),'*')
+plot(xMid(2,1),xMid(2,3),'*')
+plot(xMid(3,1),xMid(3,3),'*')
+plot(xMid(4,1),xMid(4,3),'*')
+for jj = 1:length(time_stages)
+    if jj == 1
+%        idx = (tt >= 0) & (tt < time_stages(jj)); % First stage
+        idx = (ttintp >= 0) & (ttintp < time_stages(jj)); % First stage
+    else
+%        idx = (tt >= time_stages(jj-1)) & (tt < time_stages(jj)); % Subsequent stages
+        idx = (ttintp >= time_stages(jj-1)) & (ttintp < time_stages(jj)); % Subsequent stages
+    end
+%    plot(x(idx), z(idx), '.','Color', colors(jj, :), 'LineWidth', 1.5);
+    plot(xip(idx), zip(idx), '.','Color', colors(jj, :), 'LineWidth', 1.5);
+
+end
+
+hold off;
+legend(arrayfun(@(jj) sprintf('Stage %d', jj), 1:length(time_stages), 'UniformOutput', false));
+xlabel('x');
+ylabel('z');
+title('Plot of different time stages');
+grid on;
+
+figure(4); hold on
+plot(tt,yy(:,10),tt,yy(:,12))
+
 
 % myTwolinkwithprefilter function
 function dxdt= myTwolinkwithprefilter(t, x, wn, zeta, t_st, qDes, bj, kj)
