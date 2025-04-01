@@ -58,7 +58,7 @@ bj4 = [30 30 30];
 bj5 = [30 30 30];
 
 % weights
-wt = [1, 0, 10];  %  [qDes, Time, qMid]
+wt = [1, .00001, 200];  %  [qDes, Time, qMid]
 
 % Optimization setup
 initPrms = [ttime,zeta1,zeta2,zeta3,zeta4,zeta5,wn1,wn2,wn3,wn4,wn5,kj1,kj2,kj3,kj4,kj5,bj1,bj2,bj3,bj4,bj5];
@@ -74,12 +74,12 @@ initPrms = [ttime,zeta1,zeta2,zeta3,zeta4,zeta5,wn1,wn2,wn3,wn4,wn5,kj1,kj2,kj3,
 % Lower and Upper Limits
 lb = [0  0  0  0  0   ...                                % time 
       .1 .1 .1 .1 .1 .1 .1 .1 .1 .1 .1 .1 .1 .1 .1  ...  % zeta
-      1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 ...                  % wn
-      30 30 30 30 30 30 30 30 30 30 30 30 30 30 30  ...  % Kp   
-      10 10 10 10 10 10 10 10 10 10 10 10 10 10 10  ];   % Kd
+      .5 .5 .5 .5 .5 .5 .5 .5 .5 .5 .5 .5 .5 .5 .5 ...                  % wn
+      70 70 70 70 70 70 70 70 70 70 70 70 70 70 70  ...  % Kp   
+      30 30 30 30 30 30 30 30 30 30 30 30 30 30 30  ];   % Kd
 ub = [10 10 10 10 10 ...                                     % time
-      5  5  5  5  5  5  5  5  5  5  5  5  5  5  5 ...        % zeta
-      5  5  5  5  5  5  5  5  5  5  5  5  5  5  5   ...      % wn
+      2  2  2  2  2  2  2  2  5  5  2  2  2  2  2 ...        % zeta
+      1  1  1  1  1  2  1  1  2  1  1  1  5  1  5   ...      % wn
       80 80 80 80 80 80 80 80 80 80 80 80 80 80 80 ...       % Kp
       40 40 40 40 40 40 40 40 40 40 40 40 40 40 40  ];       % Kd
 
@@ -87,9 +87,12 @@ ub = [10 10 10 10 10 ...                                     % time
 % Objective Function
 objectiveFunc = @(params) objectiveFunction(params, qDes, wt, qMid,xMid);
 
+% Time contrain Function
+constraintFunc = @(prms) timeConstraints(prms);
+
 % Run optimization
 options = optimset('PlotFcns','optimplotfval','Display', 'off', 'TolFun', 1e-8, 'MaxIter', 400,'TolX',1e-8);
-Opt = fmincon(objectiveFunc, initPrms, [], [], [], [], lb, ub, [], options);
+Opt = fmincon(objectiveFunc, initPrms, [], [], [], [], lb, ub, constraintFunc, options);
 
 
 
@@ -150,6 +153,21 @@ disp(['Time: ', num2str(Opt(1:5))])
 % disp(['Kd: ', num2str(Opt(51:65))])
 
 
+
+% Constrain Function
+function [c, ceq] = timeConstraints(prms)
+    % Nonlinear inequality constraint (must be negative or zero)
+    c = [prms(1) - prms(2);
+         prms(2) - prms(3);
+         prms(3) - prms(4);
+         prms(4) - prms(5)];
+    
+    % No equality constraint
+    ceq = [];
+end
+
+
+
 % Objective function
 function error = objectiveFunction(prms, qDes, wt, qMid,xMid)
     x0 = zeros(12, 1);
@@ -178,7 +196,7 @@ function error = objectiveFunction(prms, qDes, wt, qMid,xMid)
     penaltyZ = (distMid1Z + distMid2Z + distMid3Z + distMid4Z );
 
     % distMid = sum(arrayfun(@(i) min(sum((y(:, 7:9) - qMid(i, :)).^2, 2)), 1:size(qMid,1)));
-    error = wt(1)*distto1+wt(3)*(penaltyX + penaltyZ);
+    error = wt(1)*distto1+wt(3)*(penaltyX + penaltyZ) + wt(2)*prms(5);
     % error = wt(1) * distto1 + wt(2) * prms(5) + wt(3) * distMid;
 
 end
