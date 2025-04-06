@@ -3,54 +3,47 @@ close all;
 
 % Define desired trajectory and Middle Points
 qDes = [0.1914, -0.0445, 0.3336];
-xMid(1,:) = [0.01, 0, 0.07 ];
-qMid = IK(xMid(1,1), xMid(1,2), xMid(1,3));
+[xDes, yDes, zDes] = FK(qDes(1),qDes(2),qDes(3));
+xDes = [xDes, yDes, zDes];
+xMid = [0.02, 0, 0.05 ];
+qMid = IK(xMid(1), xMid(2), xMid(3));
 
 % Parameters
-ttime = [2 4];
-tspan = [0, ttime(end)];
-
-zeta1 = [1 1 1]; 
-zeta2 = [1 1 1];
-
+tspan = 10;
+zeta1 = [1 1 1.1]; 
 wn1 = [1 1 1]; 
-wn2 = [1 1 1];
 
 % weights
-wt = [120000, 10, 0];  %  [qDes, Time, qMid]
+wt = [3000, 10, 3];  %  [qDes, Time, qMid]
 
-% Optimization setup
-initPrms = [ttime,zeta1,zeta2,wn1,wn2];
+initPrms = [tspan,zeta1,wn1];
 
 % Initial Condition
-[ti, yi] = ode23s(@(t, x) myTwolinkwithprefilter(t, x, ttime, qDes, zeta1,  zeta2, wn1, wn2),[0 tspan(end)], zeros(12, 1));
+[ti, yi] = ode23s(@(t, x) myTwolinkwithprefilter(t, x, tspan, qDes, zeta1,  wn1),[0 tspan], zeros(12, 1));
 
 
 % Lower and Upper Limits
-lb = [0 0    ...               % time 
-      .1 .1 .1 .1 .1 .1 ...    % zeta
-      .5 .5 .5 .5 .5 .5 ];     % Wn
-ub = [10 10 ...                   % time
-      1  1  1  1  1  1  ...       % zeta
-      10 10 10 10 10 10    ];      % wn
+lb = [4    ...               % time 
+      .01 .01 .01  ...    % zeta
+      .5 .5 .5  ];     % Wn
+ub = [8  ...                   % time
+      4  4  4 ...       % zeta
+      10 10 10 ];      % wn
 
 
 % Objective Function
-objectiveFunc = @(params) objectiveFunction(params, qDes, wt, qMid,xMid);
+objectiveFunc = @(params) objectiveFunction(params, qDes, wt, qMid,xMid,xDes);
 
-% Time contrain Function
-constraintFunc = @(prms) timeConstraints(prms);
 
 % Run optimization
-options = optimset('PlotFcns','optimplotfval','Display', 'off');
-Opt = fmincon(objectiveFunc, initPrms, [], [], [], [], lb, ub, constraintFunc, options);
+options = optimset('PlotFcns', 'optimplotfval', 'Display', 'off');
+[Opt,fval] = fmincon(objectiveFunc, initPrms, [], [], [], [], lb, ub, [], options);
 
 
 
 % Simulate with optimal parameters
-[tt, yy] = ode23s(@(t, x) myTwolinkwithprefilter(t, x, Opt(1:2), qDes, Opt(3:5),   Opt(6:8),   ...
-                                                                       Opt(9:11),  Opt(12:14)), ....
-                                                                       [0 Opt(2)], zeros(12, 1));
+[tt, yy] = ode23s(@(t, x) myTwolinkwithprefilter(t, x, Opt(1), qDes, Opt(2:4),   Opt(5:7)),   ...
+                                                                    [0 Opt(1)], zeros(12, 1));
 
 %%% Plotting
 [xi,yi,zi] = FK(yi(:,7),yi(:,8),yi(:,9));  % Initial Trajectory
@@ -59,61 +52,49 @@ Opt = fmincon(objectiveFunc, initPrms, [], [], [], [], lb, ub, constraintFunc, o
 figure; hold on; grid on;
 plot(xi,zi,'--')
 plot(x,z,'.-')
-plot(xMid(1,1),xMid(1,3),'*')
+plot(xMid(1),xMid(3),'*')
 plot(0.05,0.05,'o')
 legend('Initial Trajectory','Optimized Trajectory')
 
 disp('Optimal Parameter:')
-disp(['Time: ', num2str(Opt(1:2))])
-disp(['Zeta: ', num2str(Opt(3:8))])
-disp(['Wn: ', num2str(Opt(9:14))])
+disp(['Time: ', num2str(Opt(1))])
+disp(['Zeta: ', num2str(Opt(2:4))])
+disp(['Wn: ', num2str(Opt(5:7))])
 
-% Constrain Function
-function [c, ceq] = timeConstraints(prms)
-    % Nonlinear inequality constraint (must be negative or zero)
-    c = prms(1) - prms(2);
-    
-    % No equality constraint
-    ceq = [];
-end
 
 
 
 % Objective function
-function error = objectiveFunction(prms, qDes, wt, qMid,xMid)
+function error = objectiveFunction(prms, qDes, wt, qMid,xMid,xDes)
     x0 = zeros(12, 1);
     x0(1:3) = qDes; 
 
     % Simulate the system
-    [t, y] = ode23s(@(t, x) myTwolinkwithprefilter(t, x, prms(1:2), qDes,   prms(3:5),prms(6:8), ...
-                                                                            prms(9:11),  prms(12:14)), ...
-                                                                              [0 prms(2)], x0);
-    [xOut, ~, zOut] = FK(y(:,7), y(:,8), y(:,9));
-    [xDes, ~, zDes] = FK(qDes(1),qDes(2),qDes(3));
-
-    [tMin1, idx1]=min(abs(t-prms(1)));
-
-    distanceMid1 = sqrt((xOut(pnt,1) - xMid(1,1)).^2 + (xOut(pnt,2) - xMid(1,2)).^2 + (xOut(pnt,3) - xMid(1,3)).^2);
-
-    distMid = abs( sqrt((xOut(idx1)-xMid(1))^2 + (zOut(idx1)-xMid(3))^2 ));
-
-    distEnd = abs( sqrt((xOut(end)-xDes)^2 + (zOut(end)-zDes)^2 ));
+    [t, y] = ode23s(@(t, x) myTwolinkwithprefilter(t, x, prms(1), qDes,   prms(2:4),prms(5:7)), ...
+                                                                    [0 prms(1)], x0);
+    [xOut, yOut, zOut] = FK(y(:,7), y(:,8), y(:,9));
+    xOut = [xOut, yOut, zOut];
     
-   
-    error = wt(1) * distanceMid1  + ...
-            wt(2) * distEnd    ;
-            
+    % Calculate the distance between the trajectory points and the xMid point
+    distanceMid1 = sqrt((xOut(:,1) - xMid(1)).^2 + (xOut(:,2) - xMid(2)).^2 + (xOut(:,3) - xMid(3)).^2);
+    distanceEnd  = sqrt((xOut(end,1) - xDes(1)).^2 + (xOut(end,2) - xDes(2)).^2 + (xOut(end,3) - xDes(3)).^2);
+
+
+    error = wt(1) * sum((distanceMid1),1) + ...
+            wt(2) * sum((distanceEnd),1) + ...
+            wt(3) * prms(1);
+
+
+           
 
 end
 
 
 % myTwolinkwithprefilter function
-function dxdt= myTwolinkwithprefilter(t, x, t_st, qDes, zeta1,zeta2,wn1,wn2)
+function dxdt= myTwolinkwithprefilter(t, x, t_st, qDes, zeta1,wn1)
     A1 = [zeros(3), eye(3); -diag(wn1).^2, -2 * diag(zeta1) * diag(wn1)];
     B1 = [zeros(3); diag(wn1).^2];
-    
-    A2 = [zeros(3), eye(3); -diag(wn2).^2, -2 * diag(zeta2) * diag(wn2)];
-    B2 = [zeros(3); diag(wn2).^2];
+
     
     q   = x(7:9);
     qd  = x(10:12);
@@ -131,11 +112,8 @@ function dxdt= myTwolinkwithprefilter(t, x, t_st, qDes, zeta1,zeta2,wn1,wn2)
     
     qdd = M \ (tau - C * qd );
 
-    if t < t_st(1)
-        dxdt = [A1*x(1:6) + B1*qDes(:); qd; qdd];
-    else
-        dxdt = [A2*x(1:6) + B2*qDes(:); qd; qdd];
-    end
+    dxdt = [A1*x(1:6) + B1*qDes(:); qd; qdd];
+
 
 
 end
