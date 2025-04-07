@@ -13,7 +13,7 @@
 % Plotting
 figure; hold on; grid on;
 plot(xInit, zInit, '-.');
-plot(xAct, zAct, '-');
+plot(xAct, zAct, '.-');
 plot(xD,zD);
 plot(xDes, zDes, 'o');
 plot(xMid(:,1),xMid(:,3),'*')
