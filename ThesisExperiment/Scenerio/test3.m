@@ -37,9 +37,11 @@ objectiveFunc = @(params) objectiveFunction(params, qDes, wt, qMid,xMid,xDes);
 
 % Run optimization
 options = optimset('PlotFcns', 'optimplotfval', 'Display', 'off');
-[Opt,fval] = fmincon(objectiveFunc, initPrms, [], [], [], [], lb, ub, ...
-                    @(prms) trajConstraint(prms, qDes, xMid), options);
+% [Opt,fval] = fmincon(objectiveFunc, initPrms, [], [], [], [], lb, ub, ...
+%                     @(prms) trajConstraint(prms, qDes, xMid), options);
 
+[Opt,fval] = fmincon(objectiveFunc, initPrms, [], [], [], [], lb, ub, ...
+                    @(prms) trajConstraint(prms, qDes, xMid, xDes), options);
 
 
 % Simulate with optimal parameters
@@ -63,20 +65,24 @@ disp(['Zeta: ', num2str(Opt(2:4))])
 disp(['Wn: ', num2str(Opt(5:7))])
 
 
-% Add nonlinear constraint that enforces passing through middle point
-function [c, ceq] = trajConstraint(prms, qDes, xMid)
+function [c, ceq] = trajConstraint(prms, qDes, xMid, xDes)
     % Simulate trajectory
     [t, y] = ode23s(@(t, x) myTwolinkwithprefilter(t, x, prms(1), qDes, prms(2:4), prms(5:7)), ...
                     [0 prms(1)], zeros(12, 1));
     [xOut, yOut, zOut] = FK(y(:,7), y(:,8), y(:,9));
     
-    % Find minimum distance to middle point
+    % Middle point constraint
     distances = sqrt((xOut - xMid(1)).^2 + (yOut - xMid(2)).^2 + (zOut - xMid(3)).^2);
     minDist = min(distances);
     
-    % Constraint: must pass within 0.01m of middle point
-    ceq = minDist - 0.001;  % minDist <= 0.01
-    c = [];
+    % Endpoint constraint
+    finalPos = [xOut(end) yOut(end) zOut(end)];
+    endError = norm(finalPos - xDes);
+    
+    % Combined inequality constraints
+    c = [minDist - 0.001;   % Must pass within 1mm of middle point
+         endError - 0.001];   % Final position error < 10cm
+    ceq = [];
 end
 
 

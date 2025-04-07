@@ -5,7 +5,7 @@ close all;
 qDes = [0.1914, -0.0445, 0.3336];
 [xDes, yDes, zDes] = FK(qDes(1),qDes(2),qDes(3));
 xDes = [xDes, yDes, zDes];
-xMid = [0.01, 0, 0.05 ];
+xMid = [0.01, 0, 0.06 ];
 qMid = IK(xMid(1), xMid(2), xMid(3));
 
 % Parameters
@@ -14,7 +14,7 @@ zeta = [1 1 1];
 wn = [1 1 1]; 
 
 % weights
-wt = [100, 1e+15, .1];  % [Target, End, Time]
+wt = [50, 0, 0];  % [Target, End, Time]
 
 initPrms = [tspan,zeta,wn];
 
@@ -25,10 +25,10 @@ initPrms = [tspan,zeta,wn];
 % Lower and Upper Limits
 lb = [1    ...               % time 
       0.01 0.01 0.01  ...    % zeta
-      0.01 0.01 0.01  ];     % Wn
+      10 0.01 0.1  ];     % Wn
 ub = [8  ...                   % time
-      1 1 1 ...       % zeta
-      20 20 20];      % wn
+      2 2 2 ...       % zeta
+      20 20 10];      % wn
 
 
 % Objective Function
@@ -39,7 +39,6 @@ objectiveFunc = @(params) objectiveFunction(params, qDes, wt, qMid,xMid,xDes);
 options = optimset('PlotFcns', 'optimplotfval', 'Display', 'off');
 [Opt,fval] = fmincon(objectiveFunc, initPrms, [], [], [], [], lb, ub, ...
                     @(prms) trajConstraint(prms, qDes, xMid), options);
-
 
 
 % Simulate with optimal parameters
@@ -118,9 +117,9 @@ function dxdt= myTwolinkwithprefilter(t, x, t_st, qDes, zeta1,wn1)
     q   = x(7:9);
     qd  = x(10:12);
     
-    Kp = diag([140 140 140]);  
+    Kp = diag([100 100 100]);  
 
-    Kd = diag([30 30 30]);  
+    Kd = diag([50 50 50]);  
 
     controller = Kp * (x(1:3) - q) + Kd * (x(4:6) - qd);
     

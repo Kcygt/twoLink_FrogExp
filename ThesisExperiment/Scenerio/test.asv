@@ -14,7 +14,7 @@ zeta = [1 1 1];
 wn = [1 1 1]; 
 
 % weights
-wt = [100, 1e+15, .1];  % [Target, End, Time]
+wt = [100, 1e+5, 1];  % [Target, End, Time]
 
 initPrms = [tspan,zeta,wn];
 
