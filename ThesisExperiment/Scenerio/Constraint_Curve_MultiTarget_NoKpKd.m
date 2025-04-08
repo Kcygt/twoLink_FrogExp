@@ -22,7 +22,7 @@ wn2 = [1 1 1];
 wn3 = [1 1 1];
 
 % weights
-wt = [250, 1e+5, .5];  % [Target, End, Time]
+wt = [250, 1e+5, 5];  % [Target, End, Time]
 % wt = [150, 1e+5, .001];  % [Target, End, Time]
 
 initPrms = [tspan,zeta1,zeta2,zeta3,wn1,wn2,wn3];
@@ -96,20 +96,21 @@ function [c, ceq] = trajConstraint(prms, qDes, xMid, xDes)
     % Middle point constraint
     distances1 = sqrt( (xOut - xMid(1,1)).^2 + (yOut - xMid(1,2)).^2 + (zOut - xMid(1,3)).^2);
     distances2 = sqrt( (xOut - xMid(2,1)).^2 + (yOut - xMid(2,2)).^2 + (zOut - xMid(2,3)).^2);
-    minDist1 = min(distances1);
-    minDist2 = min(distances2);
+    [minDist1,idx1] = min(distances1);
+    [minDist2,idx2] = min(distances2);
     
     % Endpoint constraint
     finalPos = [xOut(end) yOut(end) zOut(end)];
     endError = norm(finalPos - xDes);
     
     % Combined inequality constraints
-    c = [minDist1 - 0.005;
-         minDist2 - 0.005;
-         endError - 0.005;
+    c = [minDist1 - 0.001;
+         minDist2 - 0.001;
+         endError - 0.0005;
          max(y(:,10)) - 0.01;
-         max(y(:,11)) - 0.01;
          max(y(:,12)) - 0.01;
+         % max(y(idx2,10)) - 0.001;
+         % max(y(idx2,12)) - 0.001;
          prms(1) - prms(2);
          prms(2) - prms(3)];   % Final position error < 10cm
     ceq = [];
