@@ -17,11 +17,11 @@ qMid(2,:) = IK(xMid(2,1), xMid(2,2), xMid(2,3));
 qMid(3,:) = IK(xMid(3,1), xMid(3,2), xMid(3,3));
 
 % Parameters
-tspan = 10;
-wn = [.9 2 1.1];
+tspan = 8.54;
+wn = [1.5, 2.3, 1.8];
 
 % Weights
-wt = [1000, 1000, 0.5]; % [Target, End, Time]
+wt = [6, 1000, 0.01]; % [Target, End, Time]
 
 initPrms = [tspan, wn];
 
@@ -29,17 +29,21 @@ initPrms = [tspan, wn];
 [ti, yi] = ode23s(@(t, x) myTwolinkwithprefilter(t, x, tspan, qDes, wn), [0 tspan], zeros(12, 1));
 
 % Lower and Upper Limits
-lb = [2 ... % time
-      0.1 0.1 0.1]; % Wn
-ub = [10 ... % time
-      5 5 5]; % Wn
+lb = [5   1  1  1]; % Wn
+ub = [10  20 20 20]; % Wn
 
 % Objective Function
 objectiveFunc = @(params) objectiveFunction(params, qDes, wt, xMid, xDes);
 
 % Run optimization
-options = optimset('PlotFcns', 'optimplotfval', 'Display', 'off'); % Added constraint tolerance
-
+options = optimoptions('fmincon', ...
+    'Algorithm', 'sqp', ...
+    'Display', 'iter-detailed', ...
+    'MaxIterations', 200, ...
+    'FunctionTolerance', 1e-2, ...
+    'StepTolerance', 1e-2, ...
+    'OptimalityTolerance', 1e-2, ...
+    'UseParallel', false);
 [Opt, fval] = fmincon(objectiveFunc, initPrms, [], [], [], [], lb, ub,[], options);
 
 % Simulate with optimal parameters
@@ -52,7 +56,10 @@ options = optimset('PlotFcns', 'optimplotfval', 'Display', 'off'); % Added const
 figure; hold on; grid on;
 plot(xi, zi,'--')
 plot(x_opt,z_opt,'.-')
-plot(xMid(1),xMid(3),'*')
+plot(xMid(1,1),xMid(1,3),'*')
+plot(xMid(2,1),xMid(2,3),'*')
+plot(xMid(3,1),xMid(3,3),'*')
+
 plot(xDes(1),xDes(3),'o')
 legend('Initial Trajectory','Optimized Trajectory','Midpoint','Endpoint')
 
@@ -72,11 +79,18 @@ function error = objectiveFunction(prms, qDes, wt, xMid, xDes)
     [xOut,~,zOut] = FK(y(:,7),y(:,8),y(:,9));
     
     % Calculate minimum distance to middle point
-    dx = abs(xOut - xMid(1)).^2;
-    dz = abs(zOut - xMid(3)).^2;
-    distMid = sqrt(dx+dz);
+    dx1 = abs(xOut - xMid(1,1)).^2;
+    dz1 = abs(zOut - xMid(1,3)).^2;
+    distMid1 = sqrt(dx1+dz1);
     
+    dx2 = abs(xOut - xMid(2,1)).^2;
+    dz2 = abs(zOut - xMid(2,3)).^2;
+    distMid2 = sqrt(dx2+dz2);
 
+    dx3 = abs(xOut - xMid(3,1)).^2;
+    dz3 = abs(zOut - xMid(3,3)).^2;
+    distMid3 = sqrt(dx3+dz3);
+    
     % End point error
     dxEnd = abs(xOut(end) - xDes(1)).^2;
     dzEnd = abs(zOut(end) - xDes(3)).^2;
@@ -86,7 +100,7 @@ function error = objectiveFunction(prms, qDes, wt, xMid, xDes)
     timePenalty = prms(1);
 
     % Composite error (normalized)
-    error = wt(1) * min(distMid) + ...
+    error = wt(1) * (max(distMid1) + max(distMid2) + max(distMid3)) + ...
             wt(2) * distEndErr   + ...
             wt(3) * timePenalty;
 end
@@ -103,7 +117,7 @@ function dxdt= myTwolinkwithprefilter(t,x,t_st,qDes,wn)
     qd=x(10:12);
 
     Kp=diag([70 70 70]);  
-    Kd=diag([40 40 40]);  
+    Kd=diag([20 20 20]);  
 
     controller=Kp*(x(1:3)-q)+Kd*(x(4:6)-qd);
 
