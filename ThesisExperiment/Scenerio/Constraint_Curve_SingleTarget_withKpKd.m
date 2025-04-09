@@ -16,7 +16,7 @@ Kp = [100 100 100];
 Kd = [30 30 30];
 
 % weights
-wt = [150, 1e+5, 1];  % [Target, End, Time]
+wt = [10, 100, 1e-5];  % [Target, End, Time]
 
 initPrms = [tspan,zeta,wn,Kp,Kd];
 
@@ -88,8 +88,7 @@ function [c, ceq] = trajConstraint(prms, qDes, xMid, xDes)
     
     % Combined inequality constraints
     c = [minDist - 0.001;   % Must pass within 1mm of middle point
-         endError - 0.001;
-         t(end) - 3];   % Final position error < 10cm
+         endError - 0.001];   % Final position error < 10cm
     ceq = [];
 end
 

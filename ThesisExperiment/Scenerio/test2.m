@@ -5,16 +5,16 @@ close all;
 qDes = [0.1914, -0.0445, 0.3336];
 [xDes, yDes, zDes] = FK(qDes(1),qDes(2),qDes(3));
 xDes = [xDes, yDes, zDes];
-xMid = [0.01, 0, 0.06 ];
+xMid = [0.01, 0, 0.04 ];
 qMid = IK(xMid(1), xMid(2), xMid(3));
 
 % Parameters
-tspan = 10;
-zeta = [1 1 1]; 
-wn = [1 1 1]; 
+tspan = 8.2142/10;
+zeta = [0.64888       0.445     0.40875]; 
+wn = 10*[1.1495      1.2874      2.6679]; 
 
 % weights
-wt = [50, 0, 0];  % [Target, End, Time]
+wt = [50, 100, 1e-5];  % [Target, End, Time]
 
 initPrms = [tspan,zeta,wn];
 
@@ -24,11 +24,11 @@ initPrms = [tspan,zeta,wn];
 
 % Lower and Upper Limits
 lb = [1    ...               % time 
-      0.01 0.01 0.01  ...    % zeta
-      10 0.01 0.1  ];     % Wn
-ub = [8  ...                   % time
-      2 2 2 ...       % zeta
-      20 20 10];      % wn
+      0.1 0.1 0.1  ...    % zeta
+      0.1 0.1 0.1  ];     % Wn
+ub = [10  ...                   % time
+      1 1 1 ...       % zeta
+      20 20 20];      % wn
 
 
 % Objective Function
@@ -37,8 +37,11 @@ objectiveFunc = @(params) objectiveFunction(params, qDes, wt, qMid,xMid,xDes);
 
 % Run optimization
 options = optimset('PlotFcns', 'optimplotfval', 'Display', 'off');
+% [Opt,fval] = fmincon(objectiveFunc, initPrms, [], [], [], [], lb, ub, ...
+%                     @(prms) trajConstraint(prms, qDes, xMid), options);
+
 [Opt,fval] = fmincon(objectiveFunc, initPrms, [], [], [], [], lb, ub, ...
-                    @(prms) trajConstraint(prms, qDes, xMid), options);
+                    @(prms) trajConstraint(prms, qDes, xMid, xDes), options);
 
 
 % Simulate with optimal parameters
@@ -62,20 +65,24 @@ disp(['Zeta: ', num2str(Opt(2:4))])
 disp(['Wn: ', num2str(Opt(5:7))])
 
 
-% Add nonlinear constraint that enforces passing through middle point
-function [c, ceq] = trajConstraint(prms, qDes, xMid)
+function [c, ceq] = trajConstraint(prms, qDes, xMid, xDes)
     % Simulate trajectory
     [t, y] = ode23s(@(t, x) myTwolinkwithprefilter(t, x, prms(1), qDes, prms(2:4), prms(5:7)), ...
                     [0 prms(1)], zeros(12, 1));
     [xOut, yOut, zOut] = FK(y(:,7), y(:,8), y(:,9));
     
-    % Find minimum distance to middle point
+    % Middle point constraint
     distances = sqrt((xOut - xMid(1)).^2 + (yOut - xMid(2)).^2 + (zOut - xMid(3)).^2);
     minDist = min(distances);
     
-    % Constraint: must pass within 0.01m of middle point
-    ceq = minDist - 0.001;  % minDist <= 0.01
-    c = [];
+    % Endpoint constraint
+    finalPos = [xOut(end) yOut(end) zOut(end)];
+    endError = norm(finalPos - xDes);
+    
+    % Combined inequality constraints
+    c = [minDist - 0.001;   % Must pass within 1mm of middle point
+         endError - 0.001 ];   % Final position error < 10cm
+    ceq = [];
 end
 
 
@@ -95,7 +102,7 @@ function error = objectiveFunction(prms, qDes, wt, qMid, xMid, xDes)
     [minDist, idx] = min(distances);
     
     % End point error
-    endError = norm(xOut(end,:) - xDes);
+    endError =  norm(xOut(end,:) - xDes);
     
     % Time penalty
     timePenalty = prms(1);
@@ -117,9 +124,9 @@ function dxdt= myTwolinkwithprefilter(t, x, t_st, qDes, zeta1,wn1)
     q   = x(7:9);
     qd  = x(10:12);
     
-    Kp = diag([100 100 100]);  
+    Kp = diag([140 140 140]);  
 
-    Kd = diag([50 50 50]);  
+    Kd = diag([30 30 30]);  
 
     controller = Kp * (x(1:3) - q) + Kd * (x(4:6) - qd);
     

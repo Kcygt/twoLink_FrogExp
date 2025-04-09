@@ -5,7 +5,7 @@ close all;
 qDes = [0.1914, -0.0445, 0.3336];
 [xDes, yDes, zDes] = FK(qDes(1),qDes(2),qDes(3));
 xDes = [xDes, yDes, zDes];
-xMid = [0.01, 0, 0.05 ];
+xMid = [0.01, 0, 0.04 ];
 qMid = IK(xMid(1), xMid(2), xMid(3));
 
 % Parameters
@@ -14,7 +14,7 @@ zeta = [1 1 1];
 wn = [1 1 1]; 
 
 % weights
-wt = [10, 100, 1e-5];  % [Target, End, Time]
+wt = [50, 100, 1e-5];  % [Target, End, Time]
 
 initPrms = [tspan,zeta,wn];
 
@@ -24,9 +24,9 @@ initPrms = [tspan,zeta,wn];
 
 % Lower and Upper Limits
 lb = [1    ...               % time 
-      0.01 0.01 0.01  ...    % zeta
-      0.01 0.01 0.01  ];     % Wn
-ub = [3  ...                   % time
+      0.1 0.1 0.1  ...    % zeta
+      0.1 0.1 0.1  ];     % Wn
+ub = [10  ...                   % time
       1 1 1 ...       % zeta
       20 20 20];      % wn
 

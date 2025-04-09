@@ -6,8 +6,8 @@ qDes = [0.1914, -0.0445, 0.3336];
 [xDes, yDes, zDes] = FK(qDes(1),qDes(2),qDes(3));
 xDes = [xDes, yDes, zDes];
 xMid = zeros(2,3);
-xMid(1,:) = [0.02, 0, 0.01 ];
-xMid(2,:) = [0.04, 0, 0.03 ];
+xMid(1,:) = [0.015, 0, 0.01 ];
+xMid(2,:) = [0.025, 0, 0.05 ];
 qMid = zeros(2,3);
 qMid(1,:) = IK(xMid(1,1), xMid(1,2), xMid(1,3));
 qMid(2,:) = IK(xMid(2,1), xMid(2,2), xMid(2,3));
@@ -22,8 +22,8 @@ wn2 = [1 1 1];
 wn3 = [1 1 1];
 
 % weights
-wt = [1, 1e+3, .1];  % [Target, End, Time]
-% wt = [150, 1e+5, .001];  % [Target, End, Time]
+% wt = [1, 1e+3, .1];  % [Target, End, Time]
+wt = [300, 1e+3, .01];  % [Target, End, Time]
 
 initPrms = [tspan,zeta1,zeta2,zeta3,wn1,wn2,wn3];
 
@@ -43,9 +43,9 @@ ub = [10 10 10 ...            % time
       1 1 1 ...       % zeta1
       1 1 1 ...       % zeta2
       1 1 1 ...       % zeta2
-      5 5 5 ...    % wn1
-      5 5 5 ...    % wn2
-      5 5 5];      % wn3
+      15 15 15 ...    % wn1
+      15 15 15 ...    % wn2
+      15 15 15];      % wn3
 
 
 % Objective Function
@@ -104,11 +104,13 @@ function [c, ceq] = trajConstraint(prms, qDes, xMid, xDes)
     endError = norm(finalPos - xDes);
     
     % Combined inequality constraints
-    c = [minDist1 - 0.005;
-         minDist2 - 0.005;
+    c = [minDist1 - 0.0005;
+         minDist2 - 0.0005;
          endError - 0.0005;
-         prms(1) - prms(2);
-         prms(2) - prms(3)];   % Final position error < 10cm
+         max(y(:,10) - 0.008);
+         max(y(:,12) - 0.008);
+         prms(1)+1 - prms(2);
+         prms(2)+1 - prms(3)];   % Final position error < 10cm
     ceq = [];
 end
 
@@ -161,9 +163,8 @@ function dxdt= myTwolinkwithprefilter(t, x, t_st, qDes, zeta1,zeta2,zeta3,wn1,wn
     q   = x(7:9);
     qd  = x(10:12);
     
-    Kp = diag([140 140 140]);  
-
-    Kd = diag([30 30 30]);  
+    Kp = diag([100 100 100]);  
+    Kd = diag([50 50 50]);  
 
     controller = Kp * (x(1:3) - q) + Kd * (x(4:6) - qd);
     
