@@ -22,7 +22,7 @@ wn2 = [1 1 1];
 wn3 = [1 1 1];
 
 % weights
-wt = [250, 1e+5, 5];  % [Target, End, Time]
+wt = [1, 1e+3, .1];  % [Target, End, Time]
 % wt = [150, 1e+5, .001];  % [Target, End, Time]
 
 initPrms = [tspan,zeta1,zeta2,zeta3,wn1,wn2,wn3];
@@ -104,13 +104,9 @@ function [c, ceq] = trajConstraint(prms, qDes, xMid, xDes)
     endError = norm(finalPos - xDes);
     
     % Combined inequality constraints
-    c = [minDist1 - 0.001;
-         minDist2 - 0.001;
+    c = [minDist1 - 0.005;
+         minDist2 - 0.005;
          endError - 0.0005;
-         max(y(:,10)) - 0.01;
-         max(y(:,12)) - 0.01;
-         % max(y(idx2,10)) - 0.001;
-         % max(y(idx2,12)) - 0.001;
          prms(1) - prms(2);
          prms(2) - prms(3)];   % Final position error < 10cm
     ceq = [];

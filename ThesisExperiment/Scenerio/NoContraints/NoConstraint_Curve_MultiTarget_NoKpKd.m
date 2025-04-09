@@ -15,6 +15,13 @@ xMid(3,:) = [0.015,  0, 0.04 ];
 xMid(4,:) = [0.02,   0, 0.045 ];
 xMid(5,:) = [0.025,  0, 0.05 ];
 
+xMid(1,:) = [0.005,  0, 0.003 ];
+xMid(2,:) = [0.01,   0, 0.005 ];
+xMid(3,:) = [0.015,  0, 0.01 ];
+xMid(4,:) = [0.02,   0, 0.015 ];
+xMid(5,:) = [0.025,  0, 0.02 ];
+
+
 qMid(1,:) = IK(xMid(1,1), xMid(1,2), xMid(1,3));
 qMid(2,:) = IK(xMid(2,1), xMid(2,2), xMid(2,3));
 qMid(3,:) = IK(xMid(3,1), xMid(3,2), xMid(3,3));
@@ -27,7 +34,7 @@ zeta = [.9 1 .7];
 wn = [1 1 1]; 
 
 % weights
-wt = [5, 0, 0];  % [Target, End, Time]
+wt = [1.2, 1e+5, .1];  % [Target, End, Time]
 
 initPrms = [tspan,zeta,wn];
 
@@ -39,9 +46,9 @@ initPrms = [tspan,zeta,wn];
 lb = [1    ...               % time 
       0.1 0.1 0.1  ...    % zeta
       0.5 0.5 0.5  ];     % Wn
-ub = [8  ...                   % time
+ub = [5  ...                   % time
       1 1 1 ...       % zeta
-      25 25 25];      % wn
+      5 5 5];      % wn
 
 
 % Objective Function
@@ -93,7 +100,7 @@ function error = objectiveFunction(prms, qDes, wt,  xMid, xDes)
                     [0 prms(1)], x0);
     
     [xOut, yOut, zOut] = FK(y(:,7), y(:,8), y(:,9));
-    xOut = [xOut(10:end-10), yOut(10:end-10), zOut(10:end-10)];
+    xOut = [xOut, yOut, zOut];
     
     % Calculate minimum distance to middle point
     d1 = sum(sqrt(sum((xOut - xMid(1,:)).^2, 2)),1);
