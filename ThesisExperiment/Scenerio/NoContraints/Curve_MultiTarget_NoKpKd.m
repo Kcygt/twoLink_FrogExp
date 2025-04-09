@@ -5,16 +5,18 @@ close all;
 qDes = [0.1914, -0.0445, 0.3336];
 [xDes, yDes, zDes] = FK(qDes(1),qDes(2),qDes(3));
 xDes = [xDes, yDes, zDes];
-xMid = [0.04, 0, 0.01 ];
-qMid = IK(xMid(1), xMid(2), xMid(3));
+
+xMid = [0.01,  0, 0.05 ];
+qMid = IK(xMid(1,1), xMid(1,2), xMid(1,3));
 
 % Parameters
 tspan = 10;
-zeta = [1 1 1]; 
-wn = [1 1 1]; 
+zeta = [.7 .7 .7]; 
+wn = [5 5 5]; 
 
 % weights
-wt = [50, 100, 1e-5];  % [Target, End, Time]
+% wt = [10, 1e+5, .1];  % [Target, End, Time]
+wt = [100, 1e+6, .1]; 
 
 initPrms = [tspan,zeta,wn];
 
@@ -23,16 +25,16 @@ initPrms = [tspan,zeta,wn];
 
 
 % Lower and Upper Limits
-lb = [1    ...               % time 
+lb = [2    ...               % time 
       0.1 0.1 0.1  ...    % zeta
-      0.1 0.1 0.1  ];     % Wn
-ub = [10  ...                   % time
+      0.5 0.5 0.5  ];     % Wn
+ub = [8  ...                   % time
       1 1 1 ...       % zeta
-      20 20 20];      % wn
+      10 10 10];      % wn
 
 
 % Objective Function
-objectiveFunc = @(params) objectiveFunction(params, qDes, wt, qMid,xMid,xDes);
+objectiveFunc = @(params) objectiveFunction(params, qDes, wt, xMid,xDes);
 
 
 % Run optimization
@@ -40,8 +42,7 @@ options = optimset('PlotFcns', 'optimplotfval', 'Display', 'off');
 % [Opt,fval] = fmincon(objectiveFunc, initPrms, [], [], [], [], lb, ub, ...
 %                     @(prms) trajConstraint(prms, qDes, xMid), options);
 
-[Opt,fval] = fmincon(objectiveFunc, initPrms, [], [], [], [], lb, ub, ...
-                    @(prms) trajConstraint(prms, qDes, xMid, xDes), options);
+[Opt,fval] = fmincon(objectiveFunc, initPrms, [], [], [], [], lb, ub,  @(prms) trajConstraint(prms, qDes, xMid), options);
 
 
 % Simulate with optimal parameters
@@ -55,7 +56,9 @@ options = optimset('PlotFcns', 'optimplotfval', 'Display', 'off');
 figure; hold on; grid on;
 plot(xi,zi,'--')
 plot(x,z,'.-')
-plot(xMid(1),xMid(3),'*')
+plot(xMid(1,1),xMid(1,3),'*')
+
+
 plot(0.05,0.05,'o')
 legend('Initial Trajectory','Optimized Trajectory')
 
@@ -65,28 +68,15 @@ disp(['Zeta: ', num2str(Opt(2:4))])
 disp(['Wn: ', num2str(Opt(5:7))])
 
 
-function [c, ceq] = trajConstraint(prms, qDes, xMid, xDes)
-    % Simulate trajectory
-    [t, y] = ode23s(@(t, x) myTwolinkwithprefilter(t, x, prms(1), qDes, prms(2:4), prms(5:7)), ...
-                    [0 prms(1)], zeros(12, 1));
-    [xOut, yOut, zOut] = FK(y(:,7), y(:,8), y(:,9));
-    
-    % Middle point constraint
-    distances = sqrt((xOut - xMid(1)).^2 + (yOut - xMid(2)).^2 + (zOut - xMid(3)).^2);
-    minDist = min(distances);
-    
-    % Endpoint constraint
-    finalPos = [xOut(end) yOut(end) zOut(end)];
-    endError = norm(finalPos - xDes);
-    
-    % Combined inequality constraints
-    c = [minDist - 0.001;   % Must pass within 1mm of middle point
-         endError - 0.001 ];   % Final position error < 10cm
-    ceq = [];
+function [c, ceq] = trajConstraint(prms, qDes, xMid)
+    ceq = [];  % No equality constraints
+    [t, y] = ode23s(@(t,x) myTwolinkwithprefilter(t,x,prms(1),qDes,prms(2:4),prms(5:7)), [0 prms(1)], zeros(12,1));
+    [xTraj, yTraj, zTraj] = FK(y(:,7), y(:,8), y(:,9));
+    c = [min(sqrt((xMid(1)-xTraj).^2 + (xMid(2)-yTraj).^2 + (xMid(3)-zTraj).^2)) - 1];  % Must pass within 1cm
 end
 
 
-function error = objectiveFunction(prms, qDes, wt, qMid, xMid, xDes)
+function error = objectiveFunction(prms, qDes, wt,  xMid, xDes)
     x0 = zeros(12, 1);
     x0(1:3) = qDes; 
     
@@ -98,9 +88,8 @@ function error = objectiveFunction(prms, qDes, wt, qMid, xMid, xDes)
     xOut = [xOut, yOut, zOut];
     
     % Calculate minimum distance to middle point
-    distances = sqrt(sum((xOut - xMid).^2, 2));
-    [minDist, idx] = min(distances);
-    
+    d1 = min(sqrt(sum((xOut - xMid(1,:)).^2, 2)));
+   
     % End point error
     endError =  norm(xOut(end,:) - xDes);
     
@@ -108,7 +97,7 @@ function error = objectiveFunction(prms, qDes, wt, qMid, xMid, xDes)
     timePenalty = prms(1);
     
     % Composite error
-    error = wt(1) * minDist + ...    % Middle point proximity
+    error = wt(1) * d1 + ...    % Middle point proximity
             wt(2) * endError + ...   % Final position accuracy
             wt(3) * timePenalty;     % Time minimization
 end
@@ -124,9 +113,8 @@ function dxdt= myTwolinkwithprefilter(t, x, t_st, qDes, zeta1,wn1)
     q   = x(7:9);
     qd  = x(10:12);
     
-    Kp = diag([140 140 140]);  
-
-    Kd = diag([30 30 30]);  
+    Kp = diag([100 100 100]);  
+    Kd = diag([40 40 40]);  
 
     controller = Kp * (x(1:3) - q) + Kd * (x(4:6) - qd);
     
