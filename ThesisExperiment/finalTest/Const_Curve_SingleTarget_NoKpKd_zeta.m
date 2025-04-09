@@ -14,7 +14,7 @@ tspan = 10;
 wn = [1 1 1];
 
 % Weights
-wt = [50, 0.1, 0.2]; % [Target, End, Time]
+wt = [70, 0.1, 0.2]; % [Target, End, Time]
 
 initPrms = [tspan, wn];
 
