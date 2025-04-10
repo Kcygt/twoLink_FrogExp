@@ -157,7 +157,7 @@ function [c, ceq] = trajConstraint(prms,qDes,xMid)
     ceq = []; % No equality constraints
 
     % Simulate trajectory
-    [~, yy] = ode23s(@(t,x)myTwolinkwithprefilter(t,x,prms(1:3),qDes,prms(4:6),prms(7:9),prms(10:12), ... % Zeta1 zeta2 zeta3
+    [ttime, yy] = ode23s(@(t,x)myTwolinkwithprefilter(t,x,prms(1:3),qDes,prms(4:6),prms(7:9),prms(10:12), ... % Zeta1 zeta2 zeta3
                                                                      prms(13:15),prms(16:18),prms(19:21), ... % Wn1   wn2   wn3
                                                                      prms(22:24),prms(25:27),prms(28:30), ... % Kp1 Kp2 Kp3
                                                                      prms(31:33),prms(34:36),prms(37:39) ), ... % Kd1 Kd2 Kd3), ...
@@ -174,14 +174,16 @@ function [c, ceq] = trajConstraint(prms,qDes,xMid)
     dxEnd = abs(x(end) - 0.05).^2;
     dzEnd = abs(z(end) - 0.05).^2;
     distEndErr = sqrt(dxEnd + dzEnd);
-    
+    [~, idx1] = min(abs(ttime - prms(1)));
+    [~, idx2] = min(abs(ttime - prms(2)));
+
     % Nonlinear inequality constraint: min distance <= 10cm (0.1m)
     c = [min(distance1) - 0.0005;
          min(distance2) - 0.0005;
-         prms(1) - prms(2) + 2 ;
-         prms(2) - prms(3) + 2 ;
-         yy(10,:) - 0.0001;
-         yy(12,:) - 0.0001;
+         prms(1) - prms(2) + 1 ;
+         prms(2) - prms(3) + 1 ;
+         yy(idx1,10) - 0.006;
+         yy(idx2,12) - 0.006;
          distEndErr - 0.0005]; 
 end
 
