@@ -36,4 +36,4 @@ title('Cartesian Trajectory Tracking');
 % legend('Actual Joint1 position','Desired Joint1 Position','Mid-Points')
 % 
 % 
-disp(['Optimized Parameters: ', num2str(optimalParams)]);
+disp(['Opt Params: ', num2str(optimalParams)]);

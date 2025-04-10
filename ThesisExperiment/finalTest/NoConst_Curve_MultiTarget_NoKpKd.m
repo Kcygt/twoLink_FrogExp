@@ -7,7 +7,7 @@ qDes = [0.1914, -0.0445, 0.3336];
 xDes = [xDes, yDes, zDes];
 
 xMid = zeros(3,3);
-xMid(1,:) = [0.02,  0, 0.01];
+xMid(1,:) = [0.035,  0, 0.02];
 xMid(2,:) = [0.022, 0, 0.015];
 xMid(3,:) = [0.025,  0, 0.02];
 xMid(4,:) = [0.027,  0, 0.023];
@@ -28,29 +28,30 @@ qMid(8,:) = IK(xMid(8,1), xMid(8,2), xMid(8,3));
 
 % Parameters
 tspan = 20;
+zeta = [1 1 1];
 wn = [1.1 1.8 1.15];
 
 % Weights
-wt = [2, 10, 0.01]; % [Target, End, Time]
+wt = [100, 1, 0.01]; % [Target, End, Time]
 
-initPrms = [tspan, wn];
+initPrms = [tspan,zeta, wn];
 
 % Initial Condition
-[ti, yi] = ode23s(@(t, x) myTwolinkwithprefilter(t, x, tspan, qDes, wn), [0 tspan], zeros(12, 1));
+[ti, yi] = ode23s(@(t, x) myTwolinkwithprefilter(t, x, tspan, qDes, zeta, wn), [0 tspan], zeros(12, 1));
 
 % Lower and Upper Limits
-lb = [5   1  1  1]; % Wn
-ub = [10  20 20 20]; % Wn
+lb = [2   0.01 0.01 0.01  1  1  1]; % Wn
+ub = [5  5    5    5        30 30 30]; % Wn
 
 % Objective Function
 objectiveFunc = @(params) objectiveFunction(params, qDes, wt, xMid, xDes);
 
 % Run optimization
-options = optimset('PlotFcns', 'optimplotfval', 'Display', 'off'); % Added constraint tolerance
+options = optimset('PlotFcns', 'optimplotfval', 'Display', 'off'); 
 [Opt, fval] = fmincon(objectiveFunc, initPrms, [], [], [], [], lb, ub,[], options);
 
 % Simulate with optimal parameters
-[tt, yy] = ode23s(@(t, x) myTwolinkwithprefilter(t, x, Opt(1), qDes, Opt(2:4)), [0 Opt(1)], zeros(12, 1));
+[tt, yy] = ode23s(@(t, x) myTwolinkwithprefilter(t, x, Opt(1), qDes, Opt(2:4),Opt(5:7)), [0 Opt(1)], zeros(12, 1));
 
 %%% Plotting
 [xi, yi_plot, zi] = FK(yi(:,7), yi(:,8), yi(:,9)); % Initial Trajectory
@@ -60,13 +61,13 @@ figure; hold on; grid on;
 plot(xi, zi,'--')
 plot(x_opt,z_opt,'.-')
 plot(xMid(1,1),xMid(1,3),'*')
-plot(xMid(2,1),xMid(2,3),'*')
-plot(xMid(3,1),xMid(3,3),'*')
-plot(xMid(4,1),xMid(4,3),'*')
-plot(xMid(5,1),xMid(5,3),'*')
-plot(xMid(6,1),xMid(6,3),'*')
-plot(xMid(7,1),xMid(7,3),'*')
-plot(xMid(8,1),xMid(8,3),'*')
+% plot(xMid(2,1),xMid(2,3),'*')
+% plot(xMid(3,1),xMid(3,3),'*')
+% plot(xMid(4,1),xMid(4,3),'*')
+% plot(xMid(5,1),xMid(5,3),'*')
+% plot(xMid(6,1),xMid(6,3),'*')
+% plot(xMid(7,1),xMid(7,3),'*')
+% plot(xMid(8,1),xMid(8,3),'*')
 
 
 plot(xDes(1),xDes(3),'o')
@@ -74,7 +75,9 @@ legend('Initial Trajectory','Optimized Trajectory','Midpoint','Endpoint')
 
 disp('Optimal Parameter:')
 disp(['Time: ', num2str(Opt(1))])
-disp(['Wn: ', num2str(Opt(2:4))])
+disp(['zeta: ', num2str(Opt(2:4))])
+disp(['Wn: ', num2str(Opt(5:7))])
+disp(['Opt Error: ', num2str(fval)])
 
 % Objective Function
 function error = objectiveFunction(prms, qDes, wt, xMid, xDes)
@@ -82,45 +85,51 @@ function error = objectiveFunction(prms, qDes, wt, xMid, xDes)
     x0(1:3) = qDes;
 
     % Simulate the system
-    [~, y] = ode23s(@(t,x) myTwolinkwithprefilter(t,x,prms(1),qDes,prms(2:4)), ...
+    [~, y] = ode23s(@(t,x) myTwolinkwithprefilter(t,x,prms(1),qDes,prms(2:4),prms(5:7)), ...
                     [0 prms(1)], x0);
 
     [xOut,~,zOut] = FK(y(:,7),y(:,8),y(:,9));
     
-    % Calculate minimum distance to middle point
-    dx1 = abs(xOut - xMid(1,1)).^2;
-    dz1 = abs(zOut - xMid(1,3)).^2;
-    distMid1 = sum(sqrt(dx1+dz1),1);
+    % % Calculate minimum distance to middle point
+    % dx1 = abs(xOut - xMid(1,1)).^2;
+    % dz1 = abs(zOut - xMid(1,3)).^2;
+    % distMid1 = sum(sqrt(dx1+dz1),1);
+    % 
+    % dx2 = abs(xOut - xMid(2,1)).^2;
+    % dz2 = abs(zOut - xMid(2,3)).^2;
+    % distMid2 = sum(sqrt(dx2+dz2),1);
+    % 
+    % dx3 = abs(xOut - xMid(3,1)).^2;
+    % dz3 = abs(zOut - xMid(3,3)).^2;
+    % distMid3 = sum(sqrt(dx3+dz3),1);
+    % 
+    % dx4 = abs(xOut - xMid(4,1)).^2;
+    % dz4 = abs(zOut - xMid(4,3)).^2;
+    % distMid4 = sum(sqrt(dx4+dz4),1);
+    % 
+    % dx5 = abs(xOut - xMid(5,1)).^2;
+    % dz5 = abs(zOut - xMid(5,3)).^2;
+    % distMid5 = sum(sqrt(dx5+dz5),1);
+    % 
+    % dx6 = abs(xOut - xMid(6,1)).^2;
+    % dz6 = abs(zOut - xMid(6,3)).^2;
+    % distMid6 = sum(sqrt(dx6+dz6),1);
+    % 
+    % dx7 = abs(xOut - xMid(7,1)).^2;
+    % dz7 = abs(zOut - xMid(7,3)).^2;
+    % distMid7 = sum(sqrt(dx7+dz7),1);
+    % 
+    % dx8 = abs(xOut - xMid(8,1)).^2;
+    % dz8 = abs(zOut - xMid(8,3)).^2;
+    % distMid8 = sum(sqrt(dx8+dz8),1);
     
-    dx2 = abs(xOut - xMid(2,1)).^2;
-    dz2 = abs(zOut - xMid(2,3)).^2;
-    distMid2 = sum(sqrt(dx2+dz2),1);
+    % Calculate minimum distance to middle points
+    distMidTotal = 0;
+    for i = 1:1
+        distances = sqrt( (xOut - xMid(i,1)).^2 + (zOut - xMid(i,3)).^2);
+        distMidTotal = distMidTotal + min(distances);
+    end
 
-    dx3 = abs(xOut - xMid(3,1)).^2;
-    dz3 = abs(zOut - xMid(3,3)).^2;
-    distMid3 = sum(sqrt(dx3+dz3),1);
-
-    dx4 = abs(xOut - xMid(4,1)).^2;
-    dz4 = abs(zOut - xMid(4,3)).^2;
-    distMid4 = sum(sqrt(dx4+dz4),1);
-
-    dx5 = abs(xOut - xMid(5,1)).^2;
-    dz5 = abs(zOut - xMid(5,3)).^2;
-    distMid5 = sum(sqrt(dx5+dz5),1);
-    
-    dx6 = abs(xOut - xMid(6,1)).^2;
-    dz6 = abs(zOut - xMid(6,3)).^2;
-    distMid6 = sum(sqrt(dx6+dz6),1);
-    
-    dx7 = abs(xOut - xMid(7,1)).^2;
-    dz7 = abs(zOut - xMid(7,3)).^2;
-    distMid7 = sum(sqrt(dx7+dz7),1);
-
-    dx8 = abs(xOut - xMid(8,1)).^2;
-    dz8 = abs(zOut - xMid(8,3)).^2;
-    distMid8 = sum(sqrt(dx8+dz8),1);
-    
-    
     
     
     % End point error
@@ -132,7 +141,7 @@ function error = objectiveFunction(prms, qDes, wt, xMid, xDes)
     timePenalty = prms(1);
 
     % Composite error (normalized)
-    error = wt(1) * (distMid1 + distMid2 + distMid3 +distMid4 +distMid5+distMid6+distMid7+distMid8) + ...
+    error = wt(1) * (distMidTotal) + ...
             wt(2) * distEndErr   + ...
             wt(3) * timePenalty;
 end
@@ -140,15 +149,15 @@ end
 
 
 % Dynamics Function with Prefilter
-function dxdt= myTwolinkwithprefilter(t,x,t_st,qDes,wn)
-    zeta =[1 1 1];
+function dxdt= myTwolinkwithprefilter(t,x,t_st,qDes,zeta,wn)
+    % zeta =[1 1 1];
     A1=[zeros(3), eye(3); -diag(wn).^2,-2*diag(zeta)*diag(wn)];
     B1=[zeros(3); diag(wn).^2];
 
     q=x(7:9);
     qd=x(10:12);
 
-    Kp=diag([100 100 100]);  
+    Kp=diag([300 300 300]);  
     Kd=diag([40 40 40]);  
 
     controller=Kp*(x(1:3)-q)+Kd*(x(4:6)-qd);

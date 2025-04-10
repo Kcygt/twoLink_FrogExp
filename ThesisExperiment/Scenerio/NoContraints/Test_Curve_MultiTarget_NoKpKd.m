@@ -6,7 +6,7 @@ qDes = [0.1914, -0.0445, 0.3336];
 [xDes, yDes, zDes] = FK(qDes(1), qDes(2), qDes(3));
 xDes = [xDes, yDes, zDes];
 
-xMid = [0.045, 0, 0.01];
+xMid = [0.015, 0, 0.035];
 qMid = IK(xMid(1), xMid(2), xMid(3));
 
 % Parameters
@@ -14,7 +14,7 @@ tspan = 10;
 wn = [1 1 1];
 
 % Weights
-wt = [50, 0.1, 0.2]; % [Target, End, Time]
+wt = [50, 0.01, 0.002]; % [Target, End, Time]
 
 initPrms = [tspan, wn];
 
@@ -22,10 +22,10 @@ initPrms = [tspan, wn];
 [ti, yi] = ode23s(@(t, x) myTwolinkwithprefilter(t, x, tspan, qDes, wn), [0 tspan], zeros(12, 1));
 
 % Lower and Upper Limits
-lb = [4 ... % time
+lb = [2 ... % time
       0.1 0.1 0.1]; % Wn
 ub = [5 ... % time
-      20 20 20]; % Wn
+      50 50 50]; % Wn
 
 % Objective Function
 objectiveFunc = @(params) objectiveFunction(params, qDes, wt, xMid, xDes);
@@ -94,9 +94,8 @@ function [c, ceq] = trajConstraint(prms,qDes,xMid)
     [x,y,z] = FK(yy(:,7),yy(:,8),yy(:,9));     % Optimized Trajectory
     
     % Calculate distances to midpoint in 3D space
-    dx = abs(x - xMid(1)).^2;
-    dz = abs(z - xMid(3)).^2;
-    distance = sqrt(dx+dz);
+    dx = (abs(x - xMid(1)).^2 + abs(z - xMid(3)).^2);
+    distance = sqrt(dx);
     
     % End point error
     dxEnd = abs(x(end) - 0.05).^2;
@@ -104,8 +103,8 @@ function [c, ceq] = trajConstraint(prms,qDes,xMid)
     distEndErr = sqrt(dxEnd + dzEnd);
     
     % Nonlinear inequality constraint: min distance <= 10cm (0.1m)
-    c = [min(distance) - 0.001;
-         distEndErr - 0.001]; 
+    c = [min(distance) - 0.0005;
+         distEndErr - 0.0005]; 
 end
 
 % Dynamics Function with Prefilter
