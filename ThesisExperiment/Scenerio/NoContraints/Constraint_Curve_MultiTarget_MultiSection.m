@@ -182,8 +182,8 @@ function [c, ceq] = trajConstraint(prms,qDes,xMid)
          min(distance2) - 0.0005;
          prms(1) - prms(2) + 1 ;
          prms(2) - prms(3) + 1 ;
-         yy(idx1,10) - 0.006;
-         yy(idx2,12) - 0.006;
+         yy(idx1,10) - 0.06;
+         yy(idx2,12) - 0.06;
          distEndErr - 0.0005]; 
 end
 
