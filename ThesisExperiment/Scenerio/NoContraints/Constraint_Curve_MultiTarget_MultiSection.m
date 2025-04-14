@@ -178,12 +178,12 @@ function [c, ceq] = trajConstraint(prms,qDes,xMid)
     [~, idx2] = min(abs(ttime - prms(2)));
 
     % Nonlinear inequality constraint: min distance <= 10cm (0.1m)
-    c = [min(distance1) - 0.0005;
-         min(distance2) - 0.0005;
+    c = [min(distance1) - 0.00001;
+         min(distance2) - 0.00001;
          prms(1) - prms(2) + 1 ;
          prms(2) - prms(3) + 1 ;
-         yy(idx1,10) - 0.06;
-         yy(idx2,12) - 0.06;
+         yy(idx1,10) - 0.04;
+         yy(idx2,12) - 0.04;
          distEndErr - 0.0005]; 
 end
 

@@ -9,36 +9,38 @@ xMid = [0.035, 0, 0.015];
 % xMid = [0.015, 0, 0.035];
 
 qMid = IK(xMid(1),xMid(2),xMid(3));
+CtrlPnt = xMid;
 
 % Parameters
 time = 10;  % Time
-wn = [1.3 1.1 1.1];  % Prefilter Omega     
-kj = [20 20 20];  % Spring constants
-bj = [5 5 5];  % Damping constants
-wt = [10, 1e-4, 800];  % Weights [qDes, Time, qMid]
+zeta = [1 1 1];
+wn = [1.3 1.1 1.1];    % Prefilter Omega     
+kj = [20 20 20];       % Spring constants
+bj = [5 5 5];          % Damping constants
+wt = [1, 1e-6, 20];  % Weights [qDes, Time, qMid]
 % wt = [10, 1e-4, 500];  % Weights [qDes, Time, qMid]
 
 % Optimization setup
-initParams = [time wn bj kj]; % Initial guess
+initParams = [time zeta wn bj kj,CtrlPnt]; % Initial guess
 
-[init_T, init_Y] = ode23s(@(t, x) myTwolinkwithprefilter(t, x, wn, time, qDes, bj, kj), [0 time], zeros(12, 1));
+[init_T, init_Y] = ode23s(@(t, x) myTwolinkwithprefilter(t, x, zeta, wn, time, qDes, bj, kj,CtrlPnt), [0 time], zeros(12, 1));
 [xInit, yInit, zInit] = FK(init_Y(:,7), init_Y(:,8), init_Y(:,9));
 [xD, yD, zD] = FK(init_Y(:,1), init_Y(:,2), init_Y(:,3));
 
 % plot(xInit,zInit,'+',xD,zD,'.')
 % Lower and upper boundaries 
-lb = [3   1  1  1   10 10 10  70 70 70];   
-ub = [5   10 10 10  40 40 40   150 150 150];  
+lb = [3   0.1 0.1 0.1  1  1  1   10 10 10  70 70 70];   
+ub = [5   1   1   1    10 10 10  40 40 40   150 150 150];  
 
 % Objective Function
-objectiveFunc = @(params) objectiveFunction(params, qDes, wt, xMid);
+objectiveFunc = @(params) objectiveFunction(params, qDes, wt, xMid,CtrlPnt);
 
 % Run optimization
 options = optimset('Display', 'iter', 'TolFun', 1e-6, 'MaxIter', 400);
 optimalParams = fmincon(objectiveFunc, initParams, [], [], [], [], lb, ub, [], options);
 
 % Simulate with optimal parameters
-[t, y] = ode23s(@(t, x) myTwolinkwithprefilter(t, x, optimalParams(2:4), optimalParams(1), qDes, optimalParams(5:7), optimalParams(8:10)), [0 optimalParams(1)], zeros(12, 1));
+[t, y] = ode23s(@(t, x) myTwolinkwithprefilter(t, x, optimalParams(2:4), optimalParams(5:7), optimalParams(1), qDes, optimalParams(8:10), optimalParams(11:13),optimalParams(14:16)), [0 optimalParams(1)], zeros(12, 1));
 
 % Output
 [xAct, yAct, zAct] = FK(y(:,7), y(:,8), y(:,9));
@@ -60,12 +62,12 @@ title('Cartesian Trajectory Tracking');
 disp(['Optimized Parameters: ', num2str(optimalParams)]);
 
 % Objective function
-function error = objectiveFunction(params, qDes, wt, xMid)
+function error = objectiveFunction(params, qDes, wt, xMid,CtrlPnt)
     x0 = zeros(12, 1);
     x0(1:3) = qDes; 
 
     % Simulate the system
-    [t, y] = ode23s(@(t, x) myTwolinkwithprefilter(t, x, params(2:4), params(1), qDes, params(5:7), params(8:10)), [0 params(1)], x0);
+    [t, y] = ode23s(@(t, x) myTwolinkwithprefilter(t, x, params(2:4), params(5:7), params(1), qDes, params(8:10), params(11:13)), [0 params(1)], x0);
     [xDes, yDes, zDes] = FK(qDes(1), qDes(2), qDes(3));
     xDes = [xDes, yDes, zDes];
     [xAct, yAct, zAct] = FK(y(:,7), y(:,8), y(:,9));
@@ -77,15 +79,18 @@ function error = objectiveFunction(params, qDes, wt, xMid)
 
     % distMid = sum(arrayfun(@(i) min(sum((xAct - xMid(i, :)).^2, 2)), 1:size(xMid,1)));
     distMid = min(sum(  (xAct - xMid(1, :)).^2  , 2));
+    distCtrl = (min(sum(  (xAct - xMid(1, :)).^2  , 2)));
 
-    error = wt(1) * distto1 + wt(2) * params(1) + wt(3) * distMid;
+    error = wt(1) * distto1   +  ...
+            wt(2) * params(1) +  ... 
+            wt(3) * distMid;
 end
 
 % myTwolinkwithprefilter function
-function dxdt= myTwolinkwithprefilter(t, x, wn, time, qDes, bj, kj)
-    zeta = 1;
+function dxdt= myTwolinkwithprefilter(t, x,zeta, wn, time, qDes, bj, kj)
+    
     A = [zeros(3,3) eye(3);
-        -eye(3)*diag(wn).^2  -eye(3)*2*zeta*diag(wn)];
+        -eye(3)*diag(wn).^2  -eye(3)*2*diag(zeta)*diag(wn)];
     B = [zeros(3,3); diag(wn).^2];
 
     q   = x(7:9);
